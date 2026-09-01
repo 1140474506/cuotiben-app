@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -794,6 +794,7 @@ B. 1
       <div class="row" style="margin-top:8px">
         <button class="btn small" id="btnDoPrint">🖨️ 打印 / 存为 PDF</button>
         <button class="btn ghost small" id="btnDlPrint">⬇️ 存成 HTML</button>
+        <button class="btn ghost small" id="btnDoPrintInk" style="color:var(--purple);border-color:var(--purple)">✏️ 沉浸笔记</button>
       </div>
     </div>
     <div class="actions">
@@ -819,7 +820,7 @@ const APP_NAME = "错了没";
 /* 版本号：改完代码必须 +1。浏览器对这个 HTML 有缓存，用户（包括我自己）
    在平板上测的经常是旧页面还以为新功能坏了——设置页最底下和 F12 控制台
    都能看到版本，先对版本再报 bug。 */
-const APP_VERSION = "2.20";
+const APP_VERSION = "2.30";
 try{ console.log(`[${APP_NAME}] v${APP_VERSION}`); }catch(e){}
 const REASONS = {0:"暂未确认错因",1:"概念不清",2:"方法不会",3:"计算失误",4:"审题错误"};
 const REASON_COLOR = {1:"var(--red)",2:"var(--amber)",3:"var(--purple)",4:"var(--blue)"};
@@ -1907,8 +1908,12 @@ function inkDraw(){
   st.pages.forEach((pg, i)=>{
     ctx.save();
     ctx.translate(0, i*INK_H);
-    inkPaintPage(ctx, pg);
-    ctx.fillStyle = "#b6bfcc";
+    inkPaintPage(ctx, pg, st.mode === "paper");
+    if(st.mode !== "paper"){
+      ctx.fillStyle = "#b6bfcc";
+      ctx.font = "22px sans-serif";
+      ctx.fillText(第  页, 26, 38);
+    }
     ctx.font = "22px sans-serif";
     ctx.fillText(`第 ${i+1} 页`, 26, 38);
     ctx.restore();
@@ -1922,6 +1927,9 @@ function inkDraw(){
   const cy = ((ch/2 - oy)/k) - v.py;
   st.page = Math.max(0, Math.min(st.pages.length-1, Math.floor(cy/INK_H)));
   inkPageLabel();
+  if(st.bgEl) {
+    st.bgEl.style.transform = `translate(${ox}px, ${oy}px) scale(${k})`;
+  }
 }
 /* 平移范围随纸高走：纸顶可以沉到视野下方一点，纸底可以升到上方一点 */
 function inkClampView(){
@@ -2298,8 +2306,9 @@ function inkWireCanvas(cv){
       touchPts.clear(); pinch = null; pinchMoved.clear();
       penActive = true;
     }
-    /* 笔尾橡皮：翻过来直接擦，不依赖工具栏，松开恢复原状态 */
-    if(isPenEraser(e)){ st.eraserEnd = true; inkErase(e, cv); return; }
+    /* 笔尾/侧键橡皮：直接擦，松开恢复 */
+    const isSideBtn = (e.pointerType === "pen") && (e.button === 2 || e.button === 5 || e.buttons === 2 || e.buttons === 32);
+    if(isSideBtn || isPenEraser(e)){ st.eraserEnd = true; inkErase(e, cv); return; }
     if(st.tool==="erase"){ inkErase(e, cv); return; }
     /* 双击切换笔/橡皮做过一版又删了：数学书写里相邻笔画又快又近，
        连写两笔会被当成双击——上一笔被撤销、工具被切走，橡皮看起来
@@ -2395,6 +2404,7 @@ function inkWireCanvas(cv){
     }
   }, {passive:false});
   cv.addEventListener("pointerleave", ()=> inkCursor(null));
+  cv.addEventListener("contextmenu", e => { if(e.pointerType === "pen") e.preventDefault(); });
   const up = e=>{
     const st = inkPad;
     cur = null;
@@ -2415,7 +2425,7 @@ function inkWireCanvas(cv){
 }
 
 /* ---- 开板：host 传 null 表示只走全屏（题库「写写看」） ---- */
-function inkOpen(host, qid, qHTML){
+function inkOpen(host, qid, qHTML, mode){
   inkClose();
   const pref = inkPenPref();
   const ep = parseInt(localStorage.getItem("cyt_inker"), 10);
@@ -2424,7 +2434,7 @@ function inkOpen(host, qid, qHTML){
             eraserEnd:false, holdErase:false, view:{z:1, px:0, py:0},
             color: pref.color||0, width: pref.width||0,
             eraser: (ep>=0 && ep<INK_ERASERS.length) ? ep : 1,
-            settingsOpen:false};
+            settingsOpen:false, mode: mode||"review"};
   inkMountHost();
 }
 /* 把板子挂到宿主上（保留 inkPad 里的笔迹状态）。开板和"宿主 DOM 被外部
@@ -2448,28 +2458,61 @@ function inkMountHost(){
 function inkFullscreen(){
   const st = inkPad; if(!st || st.fs) return;
   const fs = document.createElement("div");
-  /* touch-action:none 盖住整个覆盖层：手掌落在背景/工具栏上时浏览器不会
-     试图起滚动手势——那种手势会连带取消笔的指针流，线当场断掉（全屏断触的
-     元凶之一）。题目区单独放行 pan-y，长题还能滚。 */
   fs.id = "inkFS";
   fs.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:150;background:var(--bg);display:flex;flex-direction:column;touch-action:none;overscroll-behavior:none";
-  fs.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)">
-      <button class="btn small" data-act="unfs">✅ 写完了</button>
-      <span class="muted" style="font-size:12px">题目固定在上方，可滚动查看</span>
-    </div>
-    <div style="max-height:32%;overflow:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.7;touch-action:pan-y">${st.qHTML}</div>
-    <div style="flex:1 1 0;min-height:0;position:relative;margin:8px;overflow:hidden">
-      <!-- 不用 inset:0 简写：个别 WebView 对它支持不全，画布会失去 CSS 尺寸
-           约束、按内部像素尺寸暴涨（dpr=2 直接翻倍），把底部工具栏整个盖掉——
-           就是"画布盖住工具栏"。显式 top/left + width/height 百分比最稳。 -->
-      <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
-    </div>
-    <div class="inkbar" style="flex:none;padding:8px 12px;background:#fff;border-top:1px solid var(--line);position:relative;z-index:2"></div>`;
+
+  let bodyHtml = "";
+  if (st.mode === "paper") {
+    bodyHtml = 
+      <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);z-index:10">
+        <button class="btn small" data-act="unfs">🔙 退出</button>
+        <span class="muted" style="font-size:12px">💡 支持双指缩放、侧键橡皮</span>
+        <div style="flex:1"></div>
+        <button class="btn ghost small" data-act="peek">👁️ 看答案</button>
+      </div>
+      <div style="flex:1 1 0;min-height:0;position:relative;overflow:hidden;background:#f1f3f5">
+        <iframe id="inkBgFrame" style="position:absolute;top:0;left:0;width:1000px;height:100%;border:0;transform-origin:0 0;pointer-events:none;background:#fff"></iframe>
+        <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+      </div>;
+  } else {
+    bodyHtml = 
+      <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)">
+        <button class="btn small" data-act="unfs">✅ 写完了</button>
+        <span class="muted" style="font-size:12px">题目固定在上方，可滚动查看</span>
+      </div>
+      <div style="max-height:32%;overflow:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.7;touch-action:pan-y">${st.qHTML}</div>
+      <div style="flex:1 1 0;min-height:0;position:relative;margin:8px;overflow:hidden">
+        <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+      </div>;
+  }
+
+  fs.innerHTML = bodyHtml + <div class="inkbar" style="flex:none;padding:8px 12px;background:#fff;border-top:1px solid var(--line);position:relative;z-index:2"></div>;
   document.body.appendChild(fs);
   st.fs = fs;
-  /* 工具栏先填上再接线：万一后面任何一步出问题，至少按钮还在，
-     用户能点「写完了」退出，不会被锁在全屏里（工具没了 = 出不去） */
+
+  if (st.mode === "paper") {
+    const frame = fs.querySelector("#inkBgFrame");
+    frame.srcdoc = st.qHTML;
+    frame.onload = () => {
+      try { frame.style.height = (frame.contentWindow.document.documentElement.scrollHeight + 300) + "px"; } catch(e){}
+    };
+    st.bgEl = frame;
+    const peek = fs.querySelector('[data-act="peek"]');
+    if(peek){
+      peek.addEventListener("click", () => {
+        try { 
+          const ans = frame.contentWindow.document.querySelector(".ansPage");
+          if(ans) {
+            const dy = ans.getBoundingClientRect().top;
+            st.view.py -= dy / st.view.z;
+            if(window.inkClampView) window.inkClampView();
+            if(window.inkDraw) window.inkDraw();
+          }
+        } catch(e){}
+      });
+    }
+  }
+
   inkSyncBar();
   st.cv = fs.querySelector("canvas");
   inkWireCanvas(st.cv);
@@ -3101,6 +3144,10 @@ function buildPrintSheet(list){
     a.href = URL.createObjectURL(blob);
     a.download = `错题练习纸_${new Date().toISOString().slice(0,10)}.html`;
     a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("btnDoPrintInk").onclick = ()=>{
+    closePrintModal();
+    inkOpen(null, "print_session", html, "paper");
   };
 }
 
