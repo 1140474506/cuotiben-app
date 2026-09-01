@@ -1925,9 +1925,6 @@ function inkDraw(){
   const cy = ((ch/2 - oy)/k) - v.py;
   st.page = Math.max(0, Math.min(st.pages.length-1, Math.floor(cy/INK_H)));
   inkPageLabel();
-  if(st.bgEl) {
-    st.bgEl.style.transform = `translate(${ox}px, ${oy}px) scale(${k})`;
-  }
 }
 /* 平移范围随纸高走：纸顶可以沉到视野下方一点，纸底可以升到上方一点 */
 function inkClampView(){
@@ -2464,12 +2461,12 @@ function inkFullscreen(){
     bodyHtml = `
       <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);z-index:10">
         <button class="btn small" data-act="unfs">🔙 退出</button>
-        <span class="muted" style="font-size:12px">💡 支持双指缩放、侧键橡皮</span>
+        <span class="muted" style="font-size:12px">↑ 练习纸可滚动  ↓ 下方手写区做题</span>
         <div style="flex:1"></div>
-        <button class="btn ghost small" data-act="peek">👁️ 看答案</button>
+        <button class="btn ghost small" data-act="peek">👁️ 滚到答案</button>
       </div>
-      <div style="flex:1 1 0;min-height:0;position:relative;overflow:hidden;background:#f1f3f5">
-        <iframe id="inkBgFrame" style="position:absolute;top:0;left:0;width:1000px;height:100%;border:0;transform-origin:0 0;pointer-events:none;background:#fff"></iframe>
+      <iframe id="inkBgFrame" style="flex:1 1 0;min-height:0;width:100%;border:0;border-bottom:2px dashed var(--line);background:#fff;touch-action:pan-y"></iframe>
+      <div style="flex:1 1 0;min-height:200px;position:relative;overflow:hidden">
         <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
       </div>`;
   } else {
@@ -2491,22 +2488,14 @@ function inkFullscreen(){
   if (st.mode === "paper") {
     const frame = fs.querySelector("#inkBgFrame");
     frame.srcdoc = st.qHTML;
-    frame.onload = () => {
-      try { frame.style.height = (frame.contentWindow.document.documentElement.scrollHeight + 300) + "px"; } catch(e){}
-    };
-    st.bgEl = frame;
     const peek = fs.querySelector('[data-act="peek"]');
     if(peek){
       peek.addEventListener("click", () => {
-        try { 
+        try {
           const ans = frame.contentWindow.document.querySelector(".ansPage");
-          if(ans) {
-            const dy = ans.getBoundingClientRect().top;
-            st.view.py -= dy / st.view.z;
-            if(window.inkClampView) window.inkClampView();
-            if(window.inkDraw) window.inkDraw();
-          }
-        } catch(e){}
+          if(ans) ans.scrollIntoView({behavior:"smooth"});
+          else frame.contentWindow.scrollTo({top:9999, behavior:"smooth"});
+        } catch(e){ try{frame.contentWindow.scrollTo({top:9999,behavior:"smooth"});}catch(e2){} }
       });
     }
   }
