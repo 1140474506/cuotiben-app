@@ -5,9 +5,9 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME).then(cache => {
       // 预缓存核心文件
       return cache.addAll([
-        './错了没.html',
+        './index.html',
         './manifest.json',
-        './错了没_logo.png'
+        './logo.png'
       ]);
     })
   );
