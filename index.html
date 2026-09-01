@@ -332,6 +332,7 @@
     <button data-tab="review"><i>📅</i><em>复盘</em><span class="badge" id="dueBadge" style="display:none">0</span></button>
     <button data-tab="practice"><i>🏋️</i><em>练习</em></button>
     <button data-tab="bank"><i>📚</i><em>题库</em></button>
+    <button data-tab="note"><i>📓</i><em>笔记</em></button>
     <button data-tab="book"><i>📖</i><em>练习册</em></button>
     <button data-tab="stats"><i>📊</i><em>统计</em></button>
     <button data-tab="settings"><i>⚙️</i><em>设置</em></button>
@@ -568,6 +569,20 @@ B. 1
 </section>
 
 <!-- ============ 练习册 ============ -->
+<section id="tab-note" hidden>
+  <div class="card" style="padding:15px">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+      <h3>我的笔记本</h3>
+      <div style="display:flex; gap:10px">
+        <button class="btn small" onclick="noteNewBlank()">➕ 新建笔记</button>
+        <button class="btn ghost small" onclick="noteImportPDF()">📄 导入 PDF</button>
+      </div>
+    </div>
+    <div id="noteList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:15px">
+      <!-- Notebook cards will be rendered here -->
+    </div>
+  </div>
+</section>
 <section id="tab-book" hidden>
   <div class="card">
     <h2>上传练习册 PDF</h2>
@@ -1037,15 +1052,331 @@ function textToOpts(s){
   }).filter(o=>o.k);
 }
 
+
+/* ---- Notebook DB API ---- */
+function dbNotesAllRaw(){
+  return new Promise((res,rej)=>{
+    const t = db.transaction("notebooks","readonly").objectStore("notebooks").getAll();
+    t.onsuccess = ()=>res(t.result); t.onerror = ()=>rej(t.error);
+  });
+}
+async function dbNotesAll(){ return (await dbNotesAllRaw()).filter(n=> !n.deletedAt).sort((a,b)=>b.updatedAt - a.updatedAt); }
+function dbNotePutRaw(n){
+  return new Promise((res,rej)=>{
+    const t = db.transaction("notebooks","readwrite").objectStore("notebooks").put(n);
+    t.onsuccess = res; t.onerror = ()=>rej(t.error);
+  });
+}
+async function dbNotePut(n, keepTs){
+  if(!keepTs) n.updatedAt = Date.now();
+  await dbNotePutRaw(n);
+  if(!keepTs && typeof syncSoon !== 'undefined') syncSoon();
+}
+async function dbNoteDel(id){
+  await dbNotePutRaw({id, deletedAt:Date.now(), updatedAt:Date.now()});
+  if(typeof syncSoon !== 'undefined') syncSoon();
+}
+
+/* ---- Notebook UI ---- */
+async function renderNotes(){
+  const list = $("noteList");
+  if(!list) return;
+  list.innerHTML = "<div class='muted'>加载中...</div>";
+  try {
+    const notes = await dbNotesAll();
+    if(!notes.length){
+      list.innerHTML = "<div class='muted'>还没有笔记本，新建一个吧。</div>";
+      return;
+    }
+    list.innerHTML = notes.map(n => `
+      <div class="card" style="padding:10px; cursor:pointer; position:relative" onclick="noteOpen('${n.id}')">
+        <div style="height:140px; background:${n.cover||'var(--blue)'}; border-radius:8px; margin-bottom:8px"></div>
+        <div style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${n.title}</div>
+        <div style="font-size:12px; color:var(--muted)">${n.pages ? n.pages.length : 0} 页</div>
+        <button class="btn ghost small" style="position:absolute; bottom:10px; right:10px; padding:2px 5px" onclick="event.stopPropagation(); noteDelConfirm('${n.id}')">🗑️</button>
+      </div>
+    `).join("");
+  } catch(e) {
+    list.innerHTML = "<div class='muted'>加载失败</div>";
+  }
+}
+
+async function noteNewBlank(){
+  const title = prompt("请输入笔记本名称", "新建笔记本");
+  if(!title) return;
+  const n = {
+    id: "nb_" + Date.now(),
+    title,
+    cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
+    createdAt: Date.now(),
+    pages: [{
+      id: "pg_0",
+      bgType: "blank",
+      layers: [{id:"l1", name:"笔记图层", visible:true, strokes:[]}]
+    }]
+  };
+  await dbNotePut(n);
+  renderNotes();
+}
+
+async function noteDelConfirm(id){
+  if(!confirm("确定要删除这个笔记本吗？")) return;
+  await dbNoteDel(id);
+  renderNotes();
+}
+
+
+let currentNote = null;
+
+async function noteOpen(id){
+  const n = (await dbNotesAll()).find(x => x.id === id);
+  if(!n) return;
+  currentNote = n;
+  
+  // Set up inkPad for Notebook Mode
+  inkClose();
+  const pref = inkPenPref();
+  inkPad = {
+    qid: "note_" + id,
+    qHTML: "", host: document.body,
+    pages: n.pages, // array of {bgType, layers, ...}
+    page: 0, tool: "pen", input: inkInputMode(),
+    undo: [], redo: [], fs: null, cv: null,
+    eraserEnd: false, holdErase: false,
+    view: {z: 1, px: 0, py: 0},
+    color: pref.color || 0, width: pref.width || 1, eraser: pref.eraser || 1,
+    activeLayer: 0,
+    _isNotebook: true
+  };
+  
+  inkFullscreenNotebook();
+}
+
+function inkFullscreenNotebook(){
+  const st = inkPad; if(!st || st.fs) return;
+  const fs = document.createElement("div");
+  fs.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:#eef0f3; display:flex; flex-direction:column";
+  
+  const toolHtml = `
+    <div style="display:flex; gap:10px; align-items:center; padding:10px 14px; background:#fff; border-bottom:1px solid var(--line); z-index:10">
+      <button class="btn small" onclick="noteClose()">🔙 退出</button>
+      <span style="font-weight:bold; flex:1; text-align:center">${currentNote.title}</span>
+      <button class="btn ghost small" onclick="noteToggleLayerPanel()">📚 图层</button>
+    </div>
+  `;
+  
+  fs.innerHTML = toolHtml + `
+    <div id="nbScroll" style="flex:1 1 0; overflow:hidden; position:relative">
+      <canvas class="inkpad" style="position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none"></canvas>
+    </div>
+  `;
+  
+  document.body.appendChild(fs);
+  st.fs = fs;
+  
+  const cv = fs.querySelector("canvas");
+  st.cv = cv;
+  inkWireCanvas(cv);
+  
+  // Load background images if any
+  st._bgImages = {};
+  
+  // Toolbar
+  const bar = document.createElement("div");
+  bar.className = "ink-bar";
+  bar.innerHTML = `
+    <div class="ink-tools">
+      <div class="ink-btn active" data-tool="pen">🖊️</div>
+      <div class="ink-btn" data-tool="line">📏</div>
+      <div class="ink-btn" data-tool="erase">🧹</div>
+    </div>
+    <div class="ink-sep"></div>
+    <div class="ink-colors" id="inkColorBar">
+      ${INK_COLORS.map((c,i)=>`<div class="ink-c ${i===st.color?'active':''}" style="background:${c}" data-i="${i}"></div>`).join("")}
+    </div>
+    <div class="ink-sep"></div>
+    <div class="ink-widths" id="inkWidthBar">
+      ${INK_WIDTHS.map((w,i)=>`<div class="ink-w ${i===st.width?'active':''}" data-i="${i}"><div style="width:${w}px;height:${w}px"></div></div>`).join("")}
+    </div>
+    <div class="ink-sep"></div>
+    <div class="ink-tools">
+      <div class="ink-btn" data-tool="undo">↩️</div>
+      <div class="ink-btn" data-tool="redo">↪️</div>
+    </div>
+  `;
+  fs.appendChild(bar);
+  inkWireBar(bar);
+  
+  // Layer Panel UI
+  const lp = document.createElement("div");
+  lp.id = "layerPanel";
+  lp.style.cssText = "display:none; position:absolute; top:60px; right:10px; width:200px; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); padding:10px; z-index:20";
+  fs.appendChild(lp);
+  noteUpdateLayerPanel();
+  
+  // Resize observer to draw
+  const ro = new ResizeObserver(()=> inkDraw());
+  ro.observe(fs.querySelector("#nbScroll"));
+  st._nbCleanup = ()=> ro.disconnect();
+}
+
+async function noteClose(){
+  if(inkPad && inkPad._isNotebook && currentNote){
+    currentNote.updatedAt = Date.now();
+    await dbNotePut(currentNote, true); // save silently
+  }
+  if(inkPad && inkPad._nbCleanup) inkPad._nbCleanup();
+  inkClose();
+  currentNote = null;
+  renderNotes();
+}
+
+function noteToggleLayerPanel(){
+  const lp = document.getElementById("layerPanel");
+  if(lp) lp.style.display = lp.style.display === "none" ? "block" : "none";
+}
+
+function noteUpdateLayerPanel(){
+  const lp = document.getElementById("layerPanel");
+  const st = inkPad;
+  if(!lp || !st || !st.pages[st.page]) return;
+  const layers = st.pages[st.page].layers;
+  
+  lp.innerHTML = `
+    <div style="font-weight:bold; margin-bottom:10px">图层 (第${st.page+1}页)</div>
+    <div style="display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto">
+      ${layers.map((l, i) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:5px; background:${i===st.activeLayer?'var(--blue-weak)':'#f9f9f9'}; border-radius:4px; cursor:pointer" onclick="noteSetLayer(${i})">
+          <span>${l.name}</span>
+          <div style="display:flex; gap:5px">
+            <button class="btn ghost small" style="padding:0 5px" onclick="event.stopPropagation(); noteToggleLayerVisible(${i})">${l.visible?'👁️':'🚫'}</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    <button class="btn small" style="width:100%; margin-top:10px" onclick="noteAddLayer()">➕ 新建图层</button>
+  `;
+}
+
+function noteSetLayer(i){
+  if(inkPad) { inkPad.activeLayer = i; noteUpdateLayerPanel(); }
+}
+function noteToggleLayerVisible(i){
+  if(inkPad) { 
+    const l = inkPad.pages[inkPad.page].layers[i];
+    l.visible = !l.visible;
+    noteUpdateLayerPanel();
+    inkDraw();
+  }
+}
+function noteAddLayer(){
+  if(inkPad) {
+    const layers = inkPad.pages[inkPad.page].layers;
+    layers.push({id:"l_"+Date.now(), name:"图层 "+(layers.length+1), visible:true, strokes:[]});
+    inkPad.activeLayer = layers.length-1;
+    noteUpdateLayerPanel();
+  }
+}
+
+
+
+/* ---- PDF Import ---- */
+async function loadPDFJS() {
+  if (window.pdfjsLib) return;
+  return new Promise((res, rej) => {
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      res();
+    };
+    script.onerror = rej;
+    document.head.appendChild(script);
+  });
+}
+
+function noteImportPDF(){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/pdf";
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    // show loading UI
+    const list = $("noteList");
+    const oldHTML = list.innerHTML;
+    list.innerHTML = "<div class='muted'>正在解析 PDF... (可能需要一些时间)</div>";
+    
+    try {
+      await loadPDFJS();
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      const numPages = pdf.numPages;
+      
+      const n = {
+        id: "nb_" + Date.now(),
+        title: file.name.replace(".pdf", ""),
+        cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
+        createdAt: Date.now(),
+        pages: []
+      };
+      
+      list.innerHTML = `<div class='muted'>正在导入 PDF... (0/${numPages})</div>`;
+      
+      for(let i=1; i<=numPages; i++){
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({scale: 1.5}); // reasonable resolution
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({canvasContext: ctx, viewport: viewport}).promise;
+        
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85); // compress
+        const fileId = "file_" + Date.now() + "_" + i;
+        
+        // Save to nb_files store
+        await new Promise((res,rej)=>{
+           const t = db.transaction("nb_files","readwrite").objectStore("nb_files").put({id: fileId, data: dataUrl});
+           t.onsuccess = res; t.onerror = ()=>rej(t.error);
+        });
+        
+        n.pages.push({
+          id: "pg_" + i,
+          bgType: "image",
+          bgData: fileId,
+          width: canvas.width,
+          height: canvas.height,
+          layers: [{id:"l1", name:"笔记图层", visible:true, strokes:[]}]
+        });
+        
+        list.innerHTML = `<div class='muted'>正在导入 PDF... (${i}/${numPages})</div>`;
+      }
+      
+      await dbNotePut(n);
+      renderNotes();
+    } catch(err) {
+      console.error(err);
+      alert("导入失败: " + err.message);
+      list.innerHTML = oldHTML;
+    }
+  };
+  input.click();
+}
+
+
 /* ---------------- IndexedDB ---------------- */
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open("kaoyanCuoti", 3);
+    const r = indexedDB.open("kaoyanCuoti", 4);
     r.onupgradeneeded = e => {
       const d = e.target.result;
       if(!d.objectStoreNames.contains("questions")) d.createObjectStore("questions", {keyPath:"id"});
       if(!d.objectStoreNames.contains("books")) d.createObjectStore("books", {keyPath:"id"});
+      if(!d.objectStoreNames.contains("notebooks")) d.createObjectStore("notebooks", {keyPath:"id"});
+      if(!d.objectStoreNames.contains("nb_files")) d.createObjectStore("nb_files", {keyPath:"id"});
       // v3：批量导入的待识别任务。放 IndexedDB 而不是内存，刷新/切页不会丢图。
       if(!d.objectStoreNames.contains("queue")) d.createObjectStore("queue", {keyPath:"id"});
     };
@@ -1601,13 +1932,14 @@ $("nav").addEventListener("click", e=>{
   const b = e.target.closest("button"); if(!b) return;
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
-  ["add","review","practice","bank","book","stats","settings"].forEach(t=> $("tab-"+t).hidden = (t!==b.dataset.tab));
+  ["add","review","practice","bank","book","note","stats","settings"].forEach(t=> $("tab-"+t).hidden = (t!==b.dataset.tab));
   window.scrollTo(0,0);            // 手机上底部 Tab 切页后停在半空很别扭
   if(b.dataset.tab==="add") refreshBatchUI();
   if(b.dataset.tab==="review") renderReview();
   if(b.dataset.tab==="practice") initPractice();
   if(b.dataset.tab==="bank") renderBank();
   if(b.dataset.tab==="book") renderBooks();
+  if(b.dataset.tab==="note") renderNotes();
   if(b.dataset.tab==="stats") renderStats();
 });
 
@@ -1858,6 +2190,29 @@ function inkTake(qid){
    适配比例永远按单页算（一屏≈一页），纸往下延伸，平移/滚轮在长纸上移动。
    数据结构（pages 数组）和同步格式一个字节没动。 */
 function inkPaintPage(ctx, strokes){
+
+  if(pgData && pgData.bgType === "image" && pgData.bgData){
+    const imgId = pgData.bgData;
+    const st = inkPad;
+    if(st && st._bgImages){
+      if(st._bgImages[imgId] && st._bgImages[imgId].complete){
+        // draw image
+        const img = st._bgImages[imgId];
+        // Fit to INK_W / INK_H
+        const scale = Math.min(INK_W/img.width, INK_H/img.height);
+        const nw = img.width * scale, nh = img.height * scale;
+        const nx = (INK_W - nw)/2, ny = (INK_H - nh)/2;
+        ctx.drawImage(img, nx, ny, nw, nh);
+      } else if(st._bgImages[imgId] === undefined){
+        st._bgImages[imgId] = new Image();
+        st._bgImages[imgId].onload = () => { if(typeof inkDraw === 'function') inkDraw(); };
+        // Fetch from DB
+        db.transaction("nb_files","readonly").objectStore("nb_files").get(imgId).onsuccess = e => {
+           if(e.target.result) st._bgImages[imgId].src = e.target.result.data;
+        };
+      }
+    }
+  } else if(!transparent){
   ctx.fillStyle = "#fff";
   ctx.fillRect(0,0,INK_W,INK_H);
   ctx.fillStyle = "#dde1e7";                           // 点阵纸：写式子时有个对齐参照
@@ -2008,9 +2363,11 @@ function inkSeg(cv, s){
 
 /* ---- 撤销 / 重做：条目 {pg, s, add}，add=落笔产生 / add=false=被擦掉 ---- */
 function inkApply(en, redo){
-  const arr = inkPad.pages[en.pg];
-  const present = redo ? en.add : !en.add;             // 重做恢复原动作，撤销做反动作
+  let arr = inkPad.pages[en.pg];
+  if (!Array.isArray(arr)) arr = arr.layers[en.layer || 0].strokes;
+  const present = redo ? en.add : !en.add;
   const i = arr.indexOf(en.s);
+
   if(present && i<0) arr.push(en.s);
   if(!present && i>=0) arr.splice(i,1);
   /* 撤销/重做发生在视野外的页时，把视野带过去——否则"按了没反应" */
@@ -2052,8 +2409,11 @@ function inkErase(e, cv){
   let hit = false;
   for(let pg=p0; pg<=p1; pg++){
     const ly = y - pg*INK_H;
-    const strokes = st.pages[pg];
-    for(let i=strokes.length-1; i>=0; i--){
+    const pgData = st.pages[pg];
+    const strokeArrays = Array.isArray(pgData) ? [pgData] : pgData.layers.filter(l=>l.visible).map(l=>l.strokes);
+    for(let layerIdx=0; layerIdx<strokeArrays.length; layerIdx++){
+      const strokes = strokeArrays[layerIdx];
+      for(let i=strokes.length-1; i>=0; i--){
       const p = strokes[i].p;
       for(let j=0;j<p.length;j+=3){
         const h = (p[j]-x)**2 + (p[j+1]-ly)**2 < rad*rad
@@ -4944,3 +5304,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+  }
