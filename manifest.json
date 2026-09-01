@@ -1,18 +1,18 @@
 {
   "name": "错了没 - 考研错题本",
   "short_name": "错了没",
-  "start_url": "./错了没.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f7f8fa",
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "./错了没_logo.png",
+      "src": "./logo.png",
       "sizes": "192x192 512x512",
       "type": "image/png"
     },
     {
-      "src": "./错了没_logo.svg",
+      "src": "./logo.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }
