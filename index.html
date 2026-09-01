@@ -2189,34 +2189,35 @@ function inkTake(qid){
    连续长纸：页是长纸上的"段"，第 i 页占逻辑 y ∈ [i×INK_H, (i+1)×INK_H)。
    适配比例永远按单页算（一屏≈一页），纸往下延伸，平移/滚轮在长纸上移动。
    数据结构（pages 数组）和同步格式一个字节没动。 */
-function inkPaintPage(ctx, strokes){
-
-  if(pgData && pgData.bgType === "image" && pgData.bgData){
-    const imgId = pgData.bgData;
-    const st = inkPad;
-    if(st && st._bgImages){
-      if(st._bgImages[imgId] && st._bgImages[imgId].complete){
-        // draw image
-        const img = st._bgImages[imgId];
-        // Fit to INK_W / INK_H
-        const scale = Math.min(INK_W/img.width, INK_H/img.height);
-        const nw = img.width * scale, nh = img.height * scale;
-        const nx = (INK_W - nw)/2, ny = (INK_H - nh)/2;
-        ctx.drawImage(img, nx, ny, nw, nh);
-      } else if(st._bgImages[imgId] === undefined){
-        st._bgImages[imgId] = new Image();
-        st._bgImages[imgId].onload = () => { if(typeof inkDraw === 'function') inkDraw(); };
-        // Fetch from DB
-        db.transaction("nb_files","readonly").objectStore("nb_files").get(imgId).onsuccess = e => {
-           if(e.target.result) st._bgImages[imgId].src = e.target.result.data;
-        };
+function inkPaintPage(ctx, pgData, transparent = false){
+  const strokes = Array.isArray(pgData) ? pgData : (pgData.layers ? pgData.layers.filter(l=>l.visible).flatMap(l=>l.strokes) : []);
+  if(!transparent){
+    if(pgData && pgData.bgType === "image" && pgData.bgData){
+      ctx.fillStyle = "#fff"; ctx.fillRect(0,0,INK_W,INK_H);
+      const imgId = pgData.bgData;
+      const st = inkPad;
+      if(st && st._bgImages){
+        if(st._bgImages[imgId] && st._bgImages[imgId].complete){
+          const img = st._bgImages[imgId];
+          const scale = Math.min(INK_W/img.width, INK_H/img.height);
+          const nw = img.width * scale, nh = img.height * scale;
+          const nx = (INK_W - nw)/2, ny = (INK_H - nh)/2;
+          ctx.drawImage(img, nx, ny, nw, nh);
+        } else if(st._bgImages[imgId] === undefined){
+          st._bgImages[imgId] = new Image();
+          st._bgImages[imgId].onload = () => { if(typeof inkDraw === "function") inkDraw(); };
+          try { db.transaction("nb_files","readonly").objectStore("nb_files").get(imgId).onsuccess = e => {
+             if(e.target.result) st._bgImages[imgId].src = e.target.result.data;
+          }; } catch(err){}
+        }
       }
+    } else {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0,0,INK_W,INK_H);
+      ctx.fillStyle = "#dde1e7";
+      for(let x=40; x<INK_W; x+=40) for(let y=40; y<INK_H; y+=40) ctx.fillRect(x-1, y-1, 2, 2);
     }
-  } else if(!transparent){
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0,0,INK_W,INK_H);
-  ctx.fillStyle = "#dde1e7";                           // 点阵纸：写式子时有个对齐参照
-  for(let x=40; x<INK_W; x+=40) for(let y=40; y<INK_H; y+=40) ctx.fillRect(x-1, y-1, 2, 2);
+  }
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   for(const st of strokes){
     ctx.strokeStyle = INK_COLORS[st.c||0];
@@ -2398,12 +2399,10 @@ function segDist2(px,py, ax,ay, bx,by){
 function inkErase(e, cv){
   const st = inkPad;
   const m = cv._map;
-  if(!st || !m) return;                     // 画布映射未就绪时不擦（不会崩）
+  if(!st || !m) return;
   const r = st._rect || cv.getBoundingClientRect();
   const x = (e.clientX-r.left-m.ox)/m.k, y = (e.clientY-r.top-m.oy)/m.k;
   const rad = inkEraseRad(e);
-  /* 长纸：橡皮可能骑在页边界上，把圆碰到的页都查一遍
-     （每页的笔迹是页内局部坐标，换算后再命中判定） */
   const p0 = Math.max(0, Math.floor((y-rad)/INK_H));
   const p1 = Math.min(st.pages.length-1, Math.floor((y+rad)/INK_H));
   let hit = false;
@@ -2414,23 +2413,24 @@ function inkErase(e, cv){
     for(let layerIdx=0; layerIdx<strokeArrays.length; layerIdx++){
       const strokes = strokeArrays[layerIdx];
       for(let i=strokes.length-1; i>=0; i--){
-      const p = strokes[i].p;
-      for(let j=0;j<p.length;j+=3){
-        const h = (p[j]-x)**2 + (p[j+1]-ly)**2 < rad*rad
-          || (j+3<p.length && segDist2(x,ly, p[j],p[j+1], p[j+3],p[j+4]) < rad*rad);
-        if(h){
-          st.undo.push({pg, s:strokes[i], add:false});
-          strokes.splice(i,1);
-          hit = true;
-          break;                       // 这条已删，继续检查下一条
+        const p = strokes[i].p;
+        for(let j=0;j<p.length;j+=3){
+          const h = (p[j]-x)**2 + (p[j+1]-ly)**2 < rad*rad
+            || (j+3<p.length && segDist2(x,ly, p[j],p[j+1], p[j+3],p[j+4]) < rad*rad);
+          if(h){
+            let layerInfo = 0;
+            if(!Array.isArray(st.pages[pg])) layerInfo = st.pages[pg].layers.findIndex(l=>l.strokes===strokes);
+            st.undo.push({pg, s:strokes[i], add:false, layer:layerInfo});
+            strokes.splice(i,1);
+            hit = true;
+            break;
+          }
         }
       }
     }
   }
   if(hit){ st.redo = []; inkDraw(); }
 }
-/* 笔尾物理橡皮（联想笔 Pro 等带橡皮头的笔）：落下报 button=5，拖动报
-   buttons=32（位掩码）。翻过来直接就是橡皮，不用碰工具栏。 */
 const isPenEraser = e => e.pointerType==="pen" && (e.button===5 || e.buttons===32);
 
 /* ---- 工具栏（内联与全屏共用一份 HTML 与事件） ----
@@ -5304,4 +5304,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-  }
