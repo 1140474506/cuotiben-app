@@ -1896,6 +1896,25 @@ function inkDraw(){
   const cv = st.cv, cw = cv.clientWidth, ch = cv.clientHeight;
   if(!cw || !ch) return;
   const dpr = Math.min(devicePixelRatio||1, 2);
+  /* Paper mode: transparent overlay, 1:1 coordinates, no virtual pages */
+  if(st._paperMode){
+    if(!cv._dpr) return; /* paperResize not called yet */
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(cv._dpr,0,0,cv._dpr,0,0);
+    ctx.clearRect(0,0,cw,ch);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const pg = st.pages[0] || [];
+    for(const s of pg){
+      const pts = s.p; if(!pts || pts.length < 6) continue;
+      ctx.strokeStyle = INK_COLORS[s.c];
+      ctx.lineWidth = s.w;
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      for(let i=3; i<pts.length; i+=3) ctx.lineTo(pts[i], pts[i+1]);
+      ctx.stroke();
+    }
+    return;
+  }
   cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
   const ctx = cv.getContext("2d");
   const v = st.view;
@@ -2209,7 +2228,11 @@ function inkWireCanvas(cv){
      touchstart 阶段就 preventDefault 是对付它们的标准打法——明确声明
      "这块区域我自己处理"。只挂在画布上：工具栏按钮的触摸点击、题目区的
      滚动都不受影响；我们的捏合缩放走 pointer 事件，也不受影响。 */
-  cv.addEventListener("touchstart", e => e.preventDefault(), {passive:false});
+  cv.addEventListener("touchstart", e => {
+    /* Paper mode: let touch scroll the container (don't block) */
+    if(inkPad && inkPad._paperMode) return;
+    e.preventDefault();
+  }, {passive:false});
   let cur = null;
   let curPg = 0;    // 正在写的笔画所在的页（笔画归属由落笔决定，中途不换页）
   /* 笔/鼠标是否正在接触。它是手掌拒绝的最高优先级判据：
@@ -2310,6 +2333,18 @@ function inkWireCanvas(cv){
        "时灵时不灵"，其实全是误触。快速操作全部让位给书写。 */
     const [lx,ly] = toL(e);
     try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+    /* Paper mode: no page division, all strokes go to page 0 */
+    if(st._paperMode){
+      curPg = 0; st.page = 0;
+      const pr = e.pressure||.5;
+      cur = st.tool==="line"
+        ? {w:INK_WIDTHS[st.width], c:st.color, p:[lx,ly,pr, lx,ly,pr]}
+        : {w:INK_WIDTHS[st.width], c:st.color, p:[lx,ly,pr]};
+      st.pages[0].push(cur);
+      st.undo.push({pg:0, s:cur, add:true}); st.redo = [];
+      startHold(e);
+      return;
+    }
     /* 落点归页：全局 y 除以页高得页号。写到纸尾之外 → 自动长出新页
        （连续书写不用碰"＋页"），纸上方（负 y）不写。上限 50 页防失控。 */
     if(ly < 0) return;
@@ -2376,7 +2411,7 @@ function inkWireCanvas(cv){
        一根线的拖动每帧一次全页重绘（纸+点阵+全部笔迹），一两毫秒的事 */
     if(st.tool === "line"){
       const [x,gy] = toL(e);
-      cur.p[3] = x; cur.p[4] = gy - curPg*INK_H; cur.p[5] = e.pressure||.5;
+      cur.p[3] = x; cur.p[4] = st._paperMode ? gy : gy - curPg*INK_H; cur.p[5] = e.pressure||.5;
       inkDraw();
       return;
     }
@@ -2384,7 +2419,7 @@ function inkWireCanvas(cv){
     if(!evs || !evs.length) evs = [e];
     for(const ev of evs){
       const [x,gy] = toL(ev);
-      cur.p.push(x, gy - curPg*INK_H, ev.pressure||.5);
+      cur.p.push(x, st._paperMode ? gy : gy - curPg*INK_H, ev.pressure||.5);
     }
     inkSeg(cv, cur);
   });
@@ -2461,13 +2496,15 @@ function inkFullscreen(){
     bodyHtml = `
       <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);z-index:10">
         <button class="btn small" data-act="unfs">🔙 退出</button>
-        <span class="muted" style="font-size:12px">↑ 练习纸可滚动  ↓ 下方手写区做题</span>
+        <span class="muted" style="font-size:12px">✍️ 手指滚动浏览，手写笔直接在纸上写</span>
         <div style="flex:1"></div>
-        <button class="btn ghost small" data-act="peek">👁️ 滚到答案</button>
+        <button class="btn ghost small" data-act="peek">👁️ 看答案</button>
       </div>
-      <iframe id="inkBgFrame" style="flex:1 1 0;min-height:0;width:100%;border:0;border-bottom:2px dashed var(--line);background:#fff;touch-action:pan-y"></iframe>
-      <div style="flex:1 1 0;min-height:200px;position:relative;overflow:hidden">
-        <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+      <div id="paperScroll" style="flex:1 1 0;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div id="paperWrap" style="position:relative;width:100%">
+          <iframe id="inkBgFrame" style="width:100%;border:0;display:block;background:#fff;pointer-events:none"></iframe>
+          <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;touch-action:pan-y"></canvas>
+        </div>
       </div>`;
   } else {
     bodyHtml = `
@@ -2487,17 +2524,45 @@ function inkFullscreen(){
 
   if (st.mode === "paper") {
     const frame = fs.querySelector("#inkBgFrame");
+    const paperCanvas = fs.querySelector("canvas.inkpad");
+    const scrollEl = fs.querySelector("#paperScroll");
     frame.srcdoc = st.qHTML;
+    st._paperMode = true;
+    /* iframe 加载完成后，把 canvas 大小设成和 iframe 内容一样高 */
+    const paperResize = () => {
+      try {
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        frame.style.height = h + "px";
+        paperCanvas.style.height = h + "px";
+        const dpr = Math.min(devicePixelRatio||1, 2);
+        paperCanvas.width = Math.round(paperCanvas.clientWidth * dpr);
+        paperCanvas.height = Math.round(h * dpr);
+        paperCanvas._dpr = dpr;
+        paperCanvas._map = {k:1, ox:0, oy:0};
+        inkDraw();
+      } catch(e) { console.warn("paperResize:", e); }
+    };
+    frame.onload = paperResize;
+    /* 观察屏幕旋转 / resize */
+    const ro = new ResizeObserver(paperResize);
+    ro.observe(scrollEl);
+    st._paperCleanup = () => ro.disconnect();
+    /* “看答案”按钮：滚动到答案区域 */
     const peek = fs.querySelector('[data-act="peek"]');
     if(peek){
       peek.addEventListener("click", () => {
         try {
-          const ans = frame.contentWindow.document.querySelector(".ansPage");
-          if(ans) ans.scrollIntoView({behavior:"smooth"});
-          else frame.contentWindow.scrollTo({top:9999, behavior:"smooth"});
-        } catch(e){ try{frame.contentWindow.scrollTo({top:9999,behavior:"smooth"});}catch(e2){} }
+          const ans = frame.contentDocument.querySelector(".ansPage");
+          if(ans) {
+            const top = ans.getBoundingClientRect().top - frame.getBoundingClientRect().top;
+            scrollEl.scrollTo({top, behavior:"smooth"});
+          } else {
+            scrollEl.scrollTo({top: scrollEl.scrollHeight, behavior:"smooth"});
+          }
+        } catch(e){ scrollEl.scrollTo({top:scrollEl.scrollHeight, behavior:"smooth"}); }
       });
     }
+    /* touch-action:pan-y 已在 canvas CSS 中设置，手指滚动会透传到 #paperScroll */
   }
 
   inkSyncBar();
@@ -2509,6 +2574,8 @@ function inkFullscreen(){
 }
 function inkUnfullscreen(){
   const st = inkPad; if(!st || !st.fs) return;
+  if(st._paperCleanup) { st._paperCleanup(); st._paperCleanup = null; }
+  st._paperMode = false;
   st.fs.remove(); st.fs = null;
   if(st.host){
     const cv = st.host.querySelector("canvas");
