@@ -1912,10 +1912,8 @@ function inkDraw(){
     if(st.mode !== "paper"){
       ctx.fillStyle = "#b6bfcc";
       ctx.font = "22px sans-serif";
-      ctx.fillText(第  页, 26, 38);
+      ctx.fillText(`第 ${i+1} 页`, 26, 38);
     }
-    ctx.font = "22px sans-serif";
-    ctx.fillText(`第 ${i+1} 页`, 26, 38);
     ctx.restore();
     if(i < st.pages.length-1){
       ctx.strokeStyle = "#c9d0da"; ctx.lineWidth = 2.5; ctx.setLineDash([16,12]);
