@@ -19,12 +19,12 @@
     /* 配色刻意压低饱和度：长时间看题的工具，界面越安静越好。
        蓝色只留给"当前位置 / 主操作"，其余一律走灰阶，
        花花绿绿的强调色堆在一起才是最像"随手生成"的地方。 */
-    --bg:#f7f8fa; --card:#ffffff; --line:#e6e8ec; --line-soft:#eef0f3;
-    --text:#141a24; --text-2:#41495a; --muted:#737d8c;
-    --blue:#2f6bd8; --blue-weak:#eef3fd; --green:#1a8a4c; --green-weak:#ecf8f1;
-    --red:#cf3232; --red-weak:#fdf1f1; --amber:#b8730c; --amber-weak:#fdf6e9;
+    --bg:#fdfbf7; --card:#ffffff; --line:#efece5; --line-soft:#f7f5f0;
+    --text:#4a453f; --text-2:#666055; --muted:#a39e93;
+    --blue:#5c88ff; --blue-weak:#eef3fd; --green:#4ade80; --green-weak:#f0fdf4;
+    --red:#ff7070; --red-weak:#fff2f2; --amber:#fbbf24; --amber-weak:#fdf6e9;
     --purple:#6d47c8; --purple-weak:#f4f1fd;
-    --radius:12px; --radius-sm:8px;
+    --radius:18px; --radius-sm:12px;
     /* 浮层才有阴影，列表卡片一律只用 1px 描边：几十张卡片各自带阴影，
        滚动时合成层开销会明显上去，观感也糊。 */
     --shadow-pop:0 6px 20px rgba(20,26,36,.10), 0 1px 3px rgba(20,26,36,.06);
@@ -2463,7 +2463,7 @@ function inkFullscreen(){
 
   let bodyHtml = "";
   if (st.mode === "paper") {
-    bodyHtml = 
+    bodyHtml = `
       <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);z-index:10">
         <button class="btn small" data-act="unfs">🔙 退出</button>
         <span class="muted" style="font-size:12px">💡 支持双指缩放、侧键橡皮</span>
@@ -2473,9 +2473,9 @@ function inkFullscreen(){
       <div style="flex:1 1 0;min-height:0;position:relative;overflow:hidden;background:#f1f3f5">
         <iframe id="inkBgFrame" style="position:absolute;top:0;left:0;width:1000px;height:100%;border:0;transform-origin:0 0;pointer-events:none;background:#fff"></iframe>
         <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
-      </div>;
+      </div>`;
   } else {
-    bodyHtml = 
+    bodyHtml = `
       <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)">
         <button class="btn small" data-act="unfs">✅ 写完了</button>
         <span class="muted" style="font-size:12px">题目固定在上方，可滚动查看</span>
@@ -2483,10 +2483,10 @@ function inkFullscreen(){
       <div style="max-height:32%;overflow:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.7;touch-action:pan-y">${st.qHTML}</div>
       <div style="flex:1 1 0;min-height:0;position:relative;margin:8px;overflow:hidden">
         <canvas class="inkpad" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
-      </div>;
+      </div>`;
   }
 
-  fs.innerHTML = bodyHtml + <div class="inkbar" style="flex:none;padding:8px 12px;background:#fff;border-top:1px solid var(--line);position:relative;z-index:2"></div>;
+  fs.innerHTML = bodyHtml + `<div class="inkbar" style="flex:none;padding:8px 12px;background:#fff;border-top:1px solid var(--line);position:relative;z-index:2"></div>`;
   document.body.appendChild(fs);
   st.fs = fs;
 
@@ -3147,7 +3147,7 @@ function buildPrintSheet(list){
   };
   $("btnDoPrintInk").onclick = ()=>{
     closePrintModal();
-    inkOpen(null, "print_session", html, "paper");
+    inkOpen(null, "print_session", html, "paper"); inkFullscreen();
   };
 }
 
