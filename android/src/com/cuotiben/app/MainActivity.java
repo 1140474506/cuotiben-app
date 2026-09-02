@@ -230,7 +230,11 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (b == null) web.loadUrl(HOME);
+        /* 一律加载，不判断 savedInstanceState：后台被系统回收后 Android 会带着
+           保存的状态重建 Activity，可新的 WebView 实例是空白的——「回后台再回来
+           打不开、必须杀掉重开」就是这个判断造成的。网页应用的状态在页面里
+           （IndexedDB + 云端），不存在需要恢复的本地现场。 */
+        web.loadUrl(HOME);
     }
 
     private static String jstr(String s) {
@@ -307,6 +311,28 @@ public class MainActivity extends Activity {
             web.evaluateJavascript(
                 "(function(){try{if(window.inkPad&&inkPad.note&&inkPad.saveFn)inkPad.saveFn()}catch(e){}})()",
                 null);
+        } catch (Throwable ignored) { }
+        web.onPause();     // 后台暂停定时器/渲染：省电，也降低被系统回收的概率
+    }
+
+    private boolean firstResume = true;
+    @Override
+    protected void onResume() {
+        super.onResume();
+        web.onResume();
+        /* 兜底：个别设备渲染进程被杀时不回调 onRenderProcessGone，页面冻住。
+           首次恢复（刚启动还在加载）不探，其余情况 JS 探活，2.5 秒没应答就重载。 */
+        if (firstResume) { firstResume = false; return; }
+        if (web.getUrl() == null) { web.loadUrl(HOME); return; }
+        try {
+            final boolean[] pong = {false};
+            web.evaluateJavascript("1", v -> pong[0] = true);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (!pong[0] && !isFinishing()) {
+                    Toast.makeText(MainActivity.this, "页面无响应，正在刷新…", Toast.LENGTH_SHORT).show();
+                    web.loadUrl(HOME);
+                }
+            }, 2500);
         } catch (Throwable ignored) { }
     }
 
