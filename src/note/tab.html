@@ -1,0 +1,13 @@
+<section id="tab-note" hidden>
+  <div class="card" style="padding:15px">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px">
+      <h3>我的笔记本</h3>
+      <div style="display:flex; gap:8px">
+        <button class="btn small" onclick="noteNewBlank()">➕ 新建笔记</button>
+        <button class="btn ghost small" onclick="noteImportPDF()">📄 导入 PDF</button>
+      </div>
+    </div>
+    <div class="muted" style="margin-bottom:10px">手写笔记：支持手写笔压感、防误触、图层、无限加页。导入 PDF 练习册就能直接在题目上写。</div>
+    <div id="noteList" class="nb-grid"></div>
+  </div>
+</section>
