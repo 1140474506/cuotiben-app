@@ -9,16 +9,6 @@ function loadPDFJS(){
     document.head.appendChild(s);
   });
 }
-function loadJsPDF(){
-  if(window.jspdf) return Promise.resolve();
-  return new Promise((res, rej)=>{
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    s.onload = res;
-    s.onerror = ()=> rej(new Error("PDF 组件加载失败，请检查网络"));
-    document.head.appendChild(s);
-  });
-}
 /* 导入 PDF：每页栅格化成图片存 nb_files，页面记录 bgData=fileId。
    旧版的问题：页对象存 width/height（引擎读的是 w/h，导致整本笔记用错纸尺寸），
    且解析过程中列表 innerHTML 被来回改，出任何异常列表就永远停在「正在解析」。
@@ -76,14 +66,12 @@ async function inkExportPDF(){
   if(!st || !st.note){ toast("当前没有打开的笔记"); return; }
   toast("正在导出…");
   try{
-    await loadJsPDF();
     /* 图片背景页先把图从 nb_files 里取出来，否则导出的是白纸 */
     for(const pg of st.pages){
       if(!Array.isArray(pg) && pg.bgType === "image" && !pg._img) await noteEnsureBg(pg);
     }
-    const { jsPDF } = window.jspdf;
     const hasHtml = st.pages.some(p => !Array.isArray(p) && p.bgType === "html");
-    let pdf = null;
+    const sheets = [];
     for(const pg of st.pages){
       /* 无限画布页按笔迹包围盒取景导出（整张 20000 的纸导出来是一张空纸） */
       let win = null, fw = inkPageW(pg), fh = inkPageH(pg);
@@ -97,11 +85,15 @@ async function inkExportPDF(){
       const cv = document.createElement("canvas");
       cv.width = pw; cv.height = ph;
       inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true, win);
-      if(!pdf) pdf = new jsPDF({orientation: ph >= pw ? "portrait" : "landscape", unit: "px", format: [pw, ph]});
-      else pdf.addPage([pw, ph], ph >= pw ? "portrait" : "landscape");
-      pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);
+      sheets.push({jpeg: inkJPEGBytes(cv.toDataURL("image/jpeg", 0.92)), w: pw, h: ph});
     }
-    pdf.save((st.note.title || "笔记") + ".pdf");
+    /* 下载走 blob（APP 里经下载桥存进系统「下载」，网页端是普通下载） */
+    const blob = inkMakePDF(sheets);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (st.note.title || "笔记") + ".pdf";
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
     if(hasHtml) toast("已导出。练习纸页导出的是手写层，印刷内容请用打印功能生成");
     else toast("已导出 PDF");
   }catch(e){

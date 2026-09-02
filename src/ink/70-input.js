@@ -80,7 +80,7 @@ function inkSnapAngle(st, x0, y0, x, y){
 }
 function inkNewStroke(st, v){
   const hl = st.tool === "highlighter";
-  const base = hl ? INK_HL_WIDTHS[inkClamp(st.hlWidth|0,0,2)] : INK_WIDTHS[inkClamp(st.width|0,0,2)];
+  const base = hl ? inkClamp(st.hlW, 4, 48) : inkClamp(st.penW, 0.6, 6);
   const s = {w:base, c: hl ? (st.hlColor|0) : (st.color|0), p:[]};
   if(hl) s.t = "hl";
   return s;
@@ -527,7 +527,7 @@ document.addEventListener("keydown", e=>{
   if((k === "delete" || k === "backspace") && st.lasso){ e.preventDefault(); return inkLassoDelete(); }
   if(k >= "1" && k <= "6"){ st.color = +k - 1; st.tool = "pen"; inkSavePref(); return inkSyncBar(); }
   if(k === "[" || k === "]"){
-    st.width = inkClamp(st.width + (k === "]" ? 1 : -1), 0, INK_WIDTHS.length-1);
+    st.penW = +inkClamp((st.penW||1.8) + (k === "]" ? 0.3 : -0.3), 0.6, 6).toFixed(1);
     inkSavePref(); return inkSyncBar();
   }
   const map = {e:"erase", p:"pen", l:"lasso", h:"highlighter", n:"line", v:"pan"};

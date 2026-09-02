@@ -165,6 +165,44 @@ function inkPaintLasso(ctx, m){
   ctx.restore();
 }
 /* ---- 选区操作 ---- */
+/* 套索截图：把选区从干层（纸 + 墨）上裁下来。
+   复制走 clipboard API（WebView/老浏览器不支持时自动落回保存），
+   保存走 blob 下载（APP 里经下载桥存进系统「下载」）。裁的是选区框
+   （strokes 包围盒 + 一圈留白），不是画的圈本身——和屏幕上看到的虚线框一致。 */
+async function inkLassoShot(save){
+  const st = inkPad;
+  if(!st || !st.lasso || !st._map){ toast("先圈选一块笔迹"); return; }
+  const bb = st.lasso.bb;
+  if(!bb || bb[2]-bb[0] < 4 || bb[3]-bb[1] < 4){ toast("选区太小了"); return; }
+  const m = st._map, dpr = st.dpr;
+  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
+  const pad = 16;                                     // 页内坐标 → 屏幕坐标（canvas CSS px）
+  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
+  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
+  if(w < 4 || h < 4){ toast("选区太小了"); return; }
+  const z = Math.min(3, 1400 / Math.max(w, h));       // 长边补到 ~1400px，别超采
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
+  cv.toBlob(async blob=>{
+    if(!blob){ toast("截图失败"); return; }
+    if(!save && typeof ClipboardItem !== "undefined" && navigator.clipboard){
+      try{
+        await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+        toast("已复制，去聊天或笔记里直接粘贴");
+        return;
+      }catch(e){ toast("这台设备不让复制图片，改为保存"); }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `错题截图_${new Date().toISOString().slice(0,10)}.png`;
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+    toast("截图已保存");
+  }, "image/png");
+}
 function inkLassoDelete(){
   const st = inkPad, L = st && st.lasso; if(!L) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;

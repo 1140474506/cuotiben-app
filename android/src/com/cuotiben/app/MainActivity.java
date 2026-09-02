@@ -12,6 +12,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.View;
@@ -54,6 +56,7 @@ public class MainActivity extends Activity {
     private static final int REQ_NOTIF = 43;
 
     private WebView web;
+    private WebView printWeb;   // 打印用的离屏 WebView（渲染完交给系统打印服务）
     private ValueCallback<Uri[]> fileCb;
     private String pendingName = "导出.pdf";
     private String pendingMime = "application/pdf";
@@ -281,6 +284,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (web != null) web.destroy();
+        if (printWeb != null) { try { printWeb.destroy(); } catch (Throwable ignored) { } }
         super.onDestroy();
     }
 
@@ -336,6 +340,13 @@ public class MainActivity extends Activity {
                     Toast.makeText(MainActivity.this, "导出失败，请重试", Toast.LENGTH_SHORT).show());
         }
 
+        /** 网页的「打印练习纸」：WebView 里 iframe.print() 是静默空操作，
+            把整份 HTML 拿过来，用离屏 WebView 渲染后交给系统打印服务。 */
+        @JavascriptInterface
+        public void printHtml(final String name, final String html) {
+            new Handler(Looper.getMainLooper()).post(() -> startPrint(name, html));
+        }
+
         /** 立刻弹一条系统通知（「试一下」按钮 / 网页开着时到点提醒）。
             名字刻意不叫 notify：和 Object.notify() 撞名在部分设备上有诡异行为。 */
         @JavascriptInterface
@@ -376,6 +387,37 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
             Toast.makeText(MainActivity.this, "请允许通知权限，提醒才能弹出来", Toast.LENGTH_LONG).show();
             return false;
+        }
+    }
+
+    /** 练习纸打印：离屏 WebView 加载 HTML，进度 100 后再等半秒（KaTeX/图片
+        渲染收尾），然后交给 PrintManager 弹系统打印界面。只触发一次（进度
+        回调可能多次到 100）。 */
+    private void startPrint(final String name, final String html) {
+        if (printWeb != null) { try { printWeb.destroy(); } catch (Throwable ignored) { } }
+        printWeb = new WebView(this);
+        printWeb.getSettings().setJavaScriptEnabled(true);
+        final boolean[] fired = {false};
+        printWeb.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView v, int p) {
+                if (p >= 100 && !fired[0]) {
+                    fired[0] = true;
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> doPrint(v, name), 600);
+                }
+            }
+        });
+        printWeb.loadDataWithBaseURL(HOME, html, "text/html", "utf-8", null);
+    }
+
+    private void doPrint(WebView v, String name) {
+        try {
+            PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+            pm.print(name, v.createPrintDocumentAdapter(name),
+                    new PrintAttributes.Builder()
+                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4).build());
+        } catch (Throwable e) {
+            Toast.makeText(this, "调起打印失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 }

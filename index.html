@@ -315,10 +315,18 @@
 .ink-dot{width:22px; height:22px; border-radius:50%; border:2px solid var(--text);
   box-shadow:2px 2px 0 var(--line); cursor:pointer; padding:0; flex:none; transition:transform .1s}
 .ink-dot.on{box-shadow:0 0 0 3px var(--blue); transform:scale(1.12)}
-.ink-wbtn{display:flex; align-items:center; justify-content:center; width:30px; height:26px;
-  border:2px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; flex:none; padding:0}
-.ink-wbtn.on{border-color:var(--blue); background:var(--blue-weak)}
-.ink-wbtn i{display:block; background:var(--text); border-radius:99px}
+/* 粗细/橡皮拉条：触摸友好（轨道加高、滑块做大），旁边配数值 + 粗细预览条 */
+.ink-range{flex:1 1 130px; min-width:110px; max-width:260px; height:34px; margin:0;
+  accent-color:var(--blue); background:transparent; -webkit-appearance:none; appearance:none}
+.ink-range::-webkit-slider-runnable-track{height:8px; border-radius:99px;
+  background:var(--line-soft); border:1px solid var(--line)}
+.ink-range::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; margin-top:-10px;
+  border-radius:50%; background:#fff; border:2.5px solid var(--blue); box-shadow:1px 1px 0 var(--line)}
+.ink-range::-moz-range-track{height:8px; border-radius:99px; background:var(--line-soft)}
+.ink-range::-moz-range-thumb{width:22px; height:22px; border-radius:50%;
+  background:#fff; border:2.5px solid var(--blue)}
+.ink-rv{min-width:2.4em; text-align:center; font-variant-numeric:tabular-nums}
+.ink-prev{display:block; flex:none; width:34px; background:var(--text); border-radius:99px}
 
 /* 全屏容器：顶栏 + 纸面 + 底部工具栏，纸面吃掉剩下的全部高度 */
 .inkfs{position:fixed; inset:0; z-index:150; background:var(--bg);
@@ -1397,16 +1405,6 @@ function loadPDFJS(){
     document.head.appendChild(s);
   });
 }
-function loadJsPDF(){
-  if(window.jspdf) return Promise.resolve();
-  return new Promise((res, rej)=>{
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    s.onload = res;
-    s.onerror = ()=> rej(new Error("PDF 组件加载失败，请检查网络"));
-    document.head.appendChild(s);
-  });
-}
 /* 导入 PDF：每页栅格化成图片存 nb_files，页面记录 bgData=fileId。
    旧版的问题：页对象存 width/height（引擎读的是 w/h，导致整本笔记用错纸尺寸），
    且解析过程中列表 innerHTML 被来回改，出任何异常列表就永远停在「正在解析」。
@@ -1464,14 +1462,12 @@ async function inkExportPDF(){
   if(!st || !st.note){ toast("当前没有打开的笔记"); return; }
   toast("正在导出…");
   try{
-    await loadJsPDF();
     /* 图片背景页先把图从 nb_files 里取出来，否则导出的是白纸 */
     for(const pg of st.pages){
       if(!Array.isArray(pg) && pg.bgType === "image" && !pg._img) await noteEnsureBg(pg);
     }
-    const { jsPDF } = window.jspdf;
     const hasHtml = st.pages.some(p => !Array.isArray(p) && p.bgType === "html");
-    let pdf = null;
+    const sheets = [];
     for(const pg of st.pages){
       /* 无限画布页按笔迹包围盒取景导出（整张 20000 的纸导出来是一张空纸） */
       let win = null, fw = inkPageW(pg), fh = inkPageH(pg);
@@ -1485,17 +1481,77 @@ async function inkExportPDF(){
       const cv = document.createElement("canvas");
       cv.width = pw; cv.height = ph;
       inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true, win);
-      if(!pdf) pdf = new jsPDF({orientation: ph >= pw ? "portrait" : "landscape", unit: "px", format: [pw, ph]});
-      else pdf.addPage([pw, ph], ph >= pw ? "portrait" : "landscape");
-      pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);
+      sheets.push({jpeg: inkJPEGBytes(cv.toDataURL("image/jpeg", 0.92)), w: pw, h: ph});
     }
-    pdf.save((st.note.title || "笔记") + ".pdf");
+    /* 下载走 blob（APP 里经下载桥存进系统「下载」，网页端是普通下载） */
+    const blob = inkMakePDF(sheets);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (st.note.title || "笔记") + ".pdf";
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
     if(hasHtml) toast("已导出。练习纸页导出的是手写层，印刷内容请用打印功能生成");
     else toast("已导出 PDF");
   }catch(e){
     console.error(e);
     toast("导出失败：" + (e.message || e));
   }
+}
+/* ---- 极简 PDF 生成器 ----
+   笔记导出的需求只有一种形态：一页一张 JPEG 图。jsPDF 从 cdnjs 加载，
+   在国内网络经常失败——APP 里点导出没反应就是它。而那几百 KB 的库我们只用到
+   「图片摆进页面」这一个功能，自己拼 PDF 文件反而更短、更稳、零依赖。
+   结构：1=Catalog 2=Pages，之后每页三个对象（Page / 图像 XObject / 内容流）。 */
+function inkMakePDF(sheets){                  // sheets: [{jpeg:Uint8Array, w, h}]
+  const enc = new TextEncoder();
+  const parts = [];
+  let pos = 0;
+  const push = b => { parts.push(b); pos += b.length; };
+  const pushStr = t => push(enc.encode(t));
+  const offs = [];
+
+  pushStr("%PDF-1.4\n");
+  const obj = (i, body) => { offs[i] = pos; pushStr(`${i} 0 obj\n${body}\nendobj\n`); };
+  /* entries 是除了 Length 以外的键值（不带尖括号）。必须拼成单个字典：
+     两个 >><< 相邻在 PDF 里不是合法的流对象头。 */
+  const streamObj = (i, entries, bytes) => {
+    offs[i] = pos;
+    pushStr(`${i} 0 obj\n<</Length ${bytes.length}${entries}>>\nstream\n`);
+    push(bytes);
+    pushStr("\nendstream\nendobj\n");
+  };
+
+  const n = sheets.length;
+  const kids = sheets.map((_, i) => `${3 + i*3} 0 R`).join(" ");
+  obj(1, "<</Type/Catalog/Pages 2 0 R>>");
+  obj(2, `<</Type/Pages/Kids[${kids}]/Count ${n}>>`);
+  sheets.forEach((sh, i) => {
+    const pageRef = 3 + i*3, imgRef = pageRef + 1, cntRef = pageRef + 2;
+    const W = Math.round(sh.w * 0.375), H = Math.round(sh.h * 0.375);   // px → pt
+    obj(pageRef, `<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${W} ${H}]`
+      + `/Resources<</XObject<</Im${i} ${imgRef} 0 R>>>>/Contents ${cntRef} 0 R>>`);
+    streamObj(imgRef,
+      `/Type/XObject/Subtype/Image/Width ${sh.w}/Height ${sh.h}`
+      + `/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode`,
+      sh.jpeg);
+    streamObj(cntRef, "",
+      enc.encode(`q ${W} 0 0 ${H} 0 0 cm /Im${i} Do Q`));
+  });
+
+  const total = 2 + n*3;
+  const xref = pos;
+  pushStr(`xref\n0 ${total + 1}\n0000000000 65535 f \n`);
+  for(let i = 1; i <= total; i++)
+    pushStr(String(offs[i]).padStart(10, "0") + " 00000 n \n");
+  pushStr(`trailer\n<</Size ${total + 1}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(parts, {type: "application/pdf"});
+}
+/* canvas 的 JPEG dataURL → 原始字节（DCTDecode 直接吃） */
+function inkJPEGBytes(dataURL){
+  const bin = atob(dataURL.split(",")[1]);
+  const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
 }
 
 
@@ -2348,9 +2404,19 @@ function inkSavePref(){
   const st = inkPad; if(!st) return;
   try{
     localStorage.setItem("cyt_inkpen", JSON.stringify({
-      color: st.color, width: st.width, eraser: st.eraser,
-      hlColor: st.hlColor, hlWidth: st.hlWidth, eraseWhole: st.eraseWhole, snap: st.snap}));
+      color: st.color, hlColor: st.hlColor,
+      penW: st.penW, hlW: st.hlW, eraser: st.eraser,
+      eraseWhole: st.eraseWhole, snap: st.snap}));
   }catch(e){}
+}
+/* 旧版本存的是档位下标（width/hlWidth/eraser∈0..2），拉条时代存真实值。
+   读档时顺手迁移，老用户无感升级。 */
+function inkMigratePref(pref){
+  if(pref.penW === undefined) pref.penW = INK_WIDTHS[pref.width ?? 1] ?? 1.8;
+  if(pref.hlW === undefined) pref.hlW = INK_HL_WIDTHS[pref.hlWidth ?? 1] ?? 22;
+  if(pref.eraser === undefined || pref.eraser <= 3)       // 旧 eraser 是 0..2 的下标
+    pref.eraser = INK_ERASERS[pref.eraser ?? 1] ?? 22;
+  return pref;
 }
 function inkPagesOf(ink){       // 旧格式（单页平铺）→ 页数组
   if(!ink || !ink.length) return [[]];
@@ -3060,8 +3126,8 @@ function segDist2(px,py, ax,ay, bx,by){
 }
 function inkEraseRad(pressure){
   const st = inkPad;
-  const i = st ? (st.eraser ?? 1) : 1;
-  return INK_ERASERS[inkClamp(i,0,INK_ERASERS.length-1)] * (0.75 + 0.5*(pressure||0.4));
+  const base = st ? inkClamp(st.eraser || 22, 6, 80) : 22;
+  return base * (0.75 + 0.5*(pressure||0.4));
 }
 /* 在页 pi 上以 (x,y) 为圆心、rad 为半径擦一次。命中的删除都记到 batch 里。 */
 function inkEraseAt(pi, x, y, rad, batch){
@@ -3300,6 +3366,44 @@ function inkPaintLasso(ctx, m){
   ctx.restore();
 }
 /* ---- 选区操作 ---- */
+/* 套索截图：把选区从干层（纸 + 墨）上裁下来。
+   复制走 clipboard API（WebView/老浏览器不支持时自动落回保存），
+   保存走 blob 下载（APP 里经下载桥存进系统「下载」）。裁的是选区框
+   （strokes 包围盒 + 一圈留白），不是画的圈本身——和屏幕上看到的虚线框一致。 */
+async function inkLassoShot(save){
+  const st = inkPad;
+  if(!st || !st.lasso || !st._map){ toast("先圈选一块笔迹"); return; }
+  const bb = st.lasso.bb;
+  if(!bb || bb[2]-bb[0] < 4 || bb[3]-bb[1] < 4){ toast("选区太小了"); return; }
+  const m = st._map, dpr = st.dpr;
+  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
+  const pad = 16;                                     // 页内坐标 → 屏幕坐标（canvas CSS px）
+  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
+  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
+  if(w < 4 || h < 4){ toast("选区太小了"); return; }
+  const z = Math.min(3, 1400 / Math.max(w, h));       // 长边补到 ~1400px，别超采
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
+  cv.toBlob(async blob=>{
+    if(!blob){ toast("截图失败"); return; }
+    if(!save && typeof ClipboardItem !== "undefined" && navigator.clipboard){
+      try{
+        await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+        toast("已复制，去聊天或笔记里直接粘贴");
+        return;
+      }catch(e){ toast("这台设备不让复制图片，改为保存"); }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `错题截图_${new Date().toISOString().slice(0,10)}.png`;
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+    toast("截图已保存");
+  }, "image/png");
+}
 function inkLassoDelete(){
   const st = inkPad, L = st && st.lasso; if(!L) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;
@@ -3492,7 +3596,7 @@ function inkSnapAngle(st, x0, y0, x, y){
 }
 function inkNewStroke(st, v){
   const hl = st.tool === "highlighter";
-  const base = hl ? INK_HL_WIDTHS[inkClamp(st.hlWidth|0,0,2)] : INK_WIDTHS[inkClamp(st.width|0,0,2)];
+  const base = hl ? inkClamp(st.hlW, 4, 48) : inkClamp(st.penW, 0.6, 6);
   const s = {w:base, c: hl ? (st.hlColor|0) : (st.color|0), p:[]};
   if(hl) s.t = "hl";
   return s;
@@ -3939,7 +4043,7 @@ document.addEventListener("keydown", e=>{
   if((k === "delete" || k === "backspace") && st.lasso){ e.preventDefault(); return inkLassoDelete(); }
   if(k >= "1" && k <= "6"){ st.color = +k - 1; st.tool = "pen"; inkSavePref(); return inkSyncBar(); }
   if(k === "[" || k === "]"){
-    st.width = inkClamp(st.width + (k === "]" ? 1 : -1), 0, INK_WIDTHS.length-1);
+    st.penW = +inkClamp((st.penW||1.8) + (k === "]" ? 0.3 : -0.3), 0.6, 6).toFixed(1);
     inkSavePref(); return inkSyncBar();
   }
   const map = {e:"erase", p:"pen", l:"lasso", h:"highlighter", n:"line", v:"pan"};
@@ -3988,6 +4092,8 @@ function inkToolbarHTML(){
       <span class="lbl">选中 ${st.lasso.items.length} 笔</span>
       ${INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("")}
       <button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
+      <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>
       ${layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
@@ -3997,22 +4103,25 @@ function inkToolbarHTML(){
 }
 function inkSettingsHTML(){
   const st = inkPad;
+  /* 拉条：粗细/橡皮大小都是连续值，拖到哪算哪，数值实时显示。
+     旧的三个档位小按钮里 <i> 忘了给宽度，一直是空白的——顺手用拉条整个替掉。 */
   if(st.tool === "erase"){
     return `<span class="lbl">橡皮大小</span>
-      ${["小","中","大"].map((t,i)=>`<button class="btn ghost small ${st.eraser===i?"on":""}" data-esize="${i}">${t}</button>`).join("")}
+      <input type="range" class="ink-range" data-k="erase" min="10" max="60" step="1" value="${Math.round(st.eraser)}">
+      <span class="lbl ink-rv">${Math.round(st.eraser)}</span>
       <span class="ink-seg"></span>
       <button class="btn ghost small ${st.eraseWhole?"on":""}" data-act="whole" title="开：碰到就整条擦掉；关：只擦掉碰到的那一段">整条擦除</button>
       <span class="lbl">压得越重擦得越宽</span>`;
   }
   const hl = st.tool === "highlighter";
-  const widths = hl ? INK_HL_WIDTHS : INK_WIDTHS;
-  const cur = hl ? st.hlWidth : st.width;
-  const curC = hl ? st.hlColor : st.color;
+  const v = hl ? st.hlW : st.penW;
   return `<span class="lbl">颜色</span>
-    ${INK_COLORS.map((c,i)=>`<button class="ink-dot ${curC===i?"on":""}" data-color="${i}" style="background:${c}"></button>`).join("")}
+    ${INK_COLORS.map((c,i)=>`<button class="ink-dot ${(hl?st.hlColor:st.color)===i?"on":""}" data-color="${i}" style="background:${c}"></button>`).join("")}
     <span class="ink-seg"></span>
     <span class="lbl">粗细</span>
-    ${widths.map((w,i)=>`<button class="ink-wbtn ${cur===i?"on":""}" data-width="${i}" title="${["细","中","粗"][i]}"><i style="height:${Math.min(14, hl?w/2.2:w*2.4)}px"></i></button>`).join("")}
+    <input type="range" class="ink-range" data-k="${hl?"hl":"pen"}" min="${hl?8:0.8}" max="${hl?40:5}" step="${hl?1:0.1}" value="${v}">
+    <span class="lbl ink-rv">${(+v).toFixed(hl?0:1)}</span>
+    <i class="ink-prev" style="height:${Math.min(15, hl ? v/2.7 : v*2.8).toFixed(1)}px"></i>
     <span class="ink-seg"></span>
     <button class="btn ghost small ${st.snap?"on":""}" data-act="snap" title="一笔画完的圆 / 方 / 直线自动摆正，写字不受影响">📐 整形</button>
     <span class="ink-seg"></span>
@@ -4035,6 +4144,26 @@ function inkWireBar(bar){
     const b = e.target.closest("button");
     if(b) inkBarAction(b);
   });
+  bar.addEventListener("input", e=>{
+    const r = e.target.closest("input.ink-range");
+    if(r) inkRangeInput(r);
+  });
+}
+/* 拉条实时生效：值进状态、标签和预览条跟着走，偏好节流 400ms 落一次 localStorage */
+let inkPrefTimer = 0;
+function inkRangeInput(r){
+  const st = inkPad; if(!st) return;
+  const v = +r.value;
+  if(r.dataset.k === "pen") st.penW = v;
+  else if(r.dataset.k === "hl") st.hlW = v;
+  else st.eraser = v;
+  const row = r.parentElement;
+  const lbl = row && row.querySelector(".ink-rv");
+  if(lbl) lbl.textContent = r.dataset.k === "pen" ? v.toFixed(1) : String(Math.round(v));
+  const prev = row && row.querySelector(".ink-prev");
+  if(prev) prev.style.height = Math.min(15, r.dataset.k === "hl" ? v/2.7 : v*2.8).toFixed(1) + "px";
+  clearTimeout(inkPrefTimer);
+  inkPrefTimer = setTimeout(inkSavePref, 400);
 }
 /* 工具栏和各个面板共用这一个处理函数（都按 data-* 匹配） */
 function inkBarAction(b){
@@ -4046,11 +4175,6 @@ function inkBarAction(b){
       if(st.tool === "highlighter") st.hlColor = +d.color; else st.color = +d.color;
       inkSavePref();
     }
-    else if(d.width !== undefined){
-      if(st.tool === "highlighter") st.hlWidth = +d.width; else st.width = +d.width;
-      inkSavePref();
-    }
-    else if(d.esize !== undefined){ st.eraser = +d.esize; inkSavePref(); }
     else if(d.lcolor !== undefined) inkLassoColor(+d.lcolor);
     else if(d.llayer !== undefined) inkLassoToLayer(+d.llayer);
     else if(d.layer !== undefined){
@@ -4070,6 +4194,8 @@ function inkBarAction(b){
       case "whole": st.eraseWhole = !st.eraseWhole; inkSavePref(); break;
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "ldel": return inkLassoDelete();
+      case "lcopy": return inkLassoShot(false);
+      case "lsave": return inkLassoShot(true);
       case "ldup": return inkLassoDup();
       case "lnone": st.lasso = null; inkInvalidate(); break;
       case "thumbs": st.thumbsOpen = !st.thumbsOpen; break;
@@ -4339,7 +4465,7 @@ function inkUnfullscreen(){
 /* ---- 开板 ---- */
 function inkOpen(cfg2){
   inkClose();
-  const pref = inkPenPref();
+  const pref = inkMigratePref(inkPenPref());
   inkPad = {
     qid: cfg2.qid || null,
     qHTML: cfg2.qHTML || "",
@@ -4349,9 +4475,9 @@ function inkOpen(cfg2){
     pages: cfg2.pages && cfg2.pages.length ? cfg2.pages : [[]],
     page: 0, activeLayer: 0,
     tool: "pen", input: inkInputMode(),
-    color: pref.color ?? 0, width: pref.width ?? 1,
-    hlColor: pref.hlColor ?? 4, hlWidth: pref.hlWidth ?? 1,
-    eraser: pref.eraser ?? 1,
+    color: pref.color ?? 0, penW: pref.penW ?? 1.8,
+    hlColor: pref.hlColor ?? 4, hlW: pref.hlW ?? 22,
+    eraser: pref.eraser ?? 22,
     eraseWhole: pref.eraseWhole ?? false,
     snap: pref.snap ?? false,
     snapAngle: false,
@@ -5223,6 +5349,35 @@ function buildPrintSheet(list){
     #toast{bottom:calc(74px + env(safe-area-inset-bottom,0px))}
     body{font-size:14.5px}
   }
+  /* ---- 练习纸专用样式 ----
+     这份模板复用了应用的整套 CSS，但练习纸自己的类（.pq/.ph/.pt/.pline/.pblank/.pa）
+     曾经一个都没定义：解答横线 .pline 高度为 0，行数选多少都挤成一团。 */
+  @page{size:A4; margin:14mm}
+  body{background:#fff}
+  h1{font-size:21px; font-weight:900; margin-bottom:4px; letter-spacing:.02em}
+  .sub{color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:18px;
+    padding-bottom:10px; border-bottom:2px solid var(--line)}
+  .pq{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+    padding:16px 18px 20px; margin-bottom:18px;
+    break-inside:avoid; page-break-inside:avoid}
+  .ph{font-weight:900; font-size:15.5px; margin-bottom:6px}
+  .pm{font-size:11.5px; color:var(--muted); font-weight:600}
+  .pt{line-height:1.85; font-size:15px; margin-top:4px; white-space:pre-wrap; overflow-wrap:anywhere}
+  .pq img{max-width:100%; max-height:70mm; display:block; margin:10px 0 2px;
+    border:1px solid var(--line-soft); border-radius:6px}
+  .pblank{margin-top:14px}
+  .pbl{font-size:12.5px; color:var(--muted); font-weight:700}
+  /* 解答横线：一条 34px 高的空行，printGap 选的是行数，行高在这里定 */
+  .pline{height:34px; border-bottom:1.5px solid var(--line-soft)}
+  .ansPage{break-before:page; page-break-before:always; padding-top:2mm}
+  .pa{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+    padding:12px 15px; margin-bottom:12px; line-height:1.75; font-size:14px;
+    break-inside:avoid; page-break-inside:avoid}
+  @media print{
+    body{font-size:13.5px}
+    .pq{margin-bottom:14px}
+    .pq, .pa{box-shadow:none}
+  }
 </style></head><body>
   <h1>错题练习纸</h1>
   <div class="sub">${APP_NAME} · 共 ${list.length} 题｜生成于 ${new Date().toLocaleString()}｜答案见最后一页</div>
@@ -5242,6 +5397,13 @@ function buildPrintSheet(list){
   $("pmDone").hidden = false;
   $("pmDone").scrollIntoView({block:"nearest"});
   $("btnDoPrint").onclick = ()=>{
+    /* 平板 APP：WebView 里 iframe.print() 是静默空操作，把整份 HTML 交给
+       原生打印服务（PrintManager）。网页端保持原来的 iframe 打印。 */
+    const bridge = window.AndroidBridge;
+    if(bridge && bridge.printHtml){
+      try{ bridge.printHtml("错题练习纸", html); toast("正在调起系统打印…"); return; }
+      catch(err){ /* 桥异常就落回网页路径 */ }
+    }
     try{ f.contentWindow.focus(); f.contentWindow.print(); }
     catch(err){ toast("打印失败，可先「存成 HTML」再用浏览器打开打印"); }
   };
@@ -5956,8 +6118,15 @@ function remindSchedule(){
     try{ b.scheduleReminder(cfg.remindOn ? 1 : 0, cfg.remindTime || "20:00"); }catch(e){}
   }
 }
-function remindFire(test){
-  const body = test ? "这是一条测试提醒，效果就是这样 ✅" : "今天的错题该复盘了，别让它们过夜 📚";
+async function remindFire(test){
+  let body = test ? "这是一条测试提醒，效果就是这样 ✅" : "今天的错题该复盘了，别让它们过夜 📚";
+  if(!test){
+    /* 到期数顺手数出来放进提醒里（dbAll 有缓存，一次整数比较的开销） */
+    try{
+      const n = (await dbAll()).filter(isDue).length;
+      if(n > 0) body = `今天有 ${n} 题到期该复盘了，别让它们过夜 📚`;
+    }catch(e){ }
+  }
   const b = window.AndroidBridge;
   if(b && b.notif){
     try{ b.notif(test ? "test" : "remind", "错了没 ⏰", body); return; }catch(e){}

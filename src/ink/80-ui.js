@@ -40,6 +40,8 @@ function inkToolbarHTML(){
       <span class="lbl">选中 ${st.lasso.items.length} 笔</span>
       ${INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("")}
       <button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
+      <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>
       ${layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
@@ -49,22 +51,25 @@ function inkToolbarHTML(){
 }
 function inkSettingsHTML(){
   const st = inkPad;
+  /* 拉条：粗细/橡皮大小都是连续值，拖到哪算哪，数值实时显示。
+     旧的三个档位小按钮里 <i> 忘了给宽度，一直是空白的——顺手用拉条整个替掉。 */
   if(st.tool === "erase"){
     return `<span class="lbl">橡皮大小</span>
-      ${["小","中","大"].map((t,i)=>`<button class="btn ghost small ${st.eraser===i?"on":""}" data-esize="${i}">${t}</button>`).join("")}
+      <input type="range" class="ink-range" data-k="erase" min="10" max="60" step="1" value="${Math.round(st.eraser)}">
+      <span class="lbl ink-rv">${Math.round(st.eraser)}</span>
       <span class="ink-seg"></span>
       <button class="btn ghost small ${st.eraseWhole?"on":""}" data-act="whole" title="开：碰到就整条擦掉；关：只擦掉碰到的那一段">整条擦除</button>
       <span class="lbl">压得越重擦得越宽</span>`;
   }
   const hl = st.tool === "highlighter";
-  const widths = hl ? INK_HL_WIDTHS : INK_WIDTHS;
-  const cur = hl ? st.hlWidth : st.width;
-  const curC = hl ? st.hlColor : st.color;
+  const v = hl ? st.hlW : st.penW;
   return `<span class="lbl">颜色</span>
-    ${INK_COLORS.map((c,i)=>`<button class="ink-dot ${curC===i?"on":""}" data-color="${i}" style="background:${c}"></button>`).join("")}
+    ${INK_COLORS.map((c,i)=>`<button class="ink-dot ${(hl?st.hlColor:st.color)===i?"on":""}" data-color="${i}" style="background:${c}"></button>`).join("")}
     <span class="ink-seg"></span>
     <span class="lbl">粗细</span>
-    ${widths.map((w,i)=>`<button class="ink-wbtn ${cur===i?"on":""}" data-width="${i}" title="${["细","中","粗"][i]}"><i style="height:${Math.min(14, hl?w/2.2:w*2.4)}px"></i></button>`).join("")}
+    <input type="range" class="ink-range" data-k="${hl?"hl":"pen"}" min="${hl?8:0.8}" max="${hl?40:5}" step="${hl?1:0.1}" value="${v}">
+    <span class="lbl ink-rv">${(+v).toFixed(hl?0:1)}</span>
+    <i class="ink-prev" style="height:${Math.min(15, hl ? v/2.7 : v*2.8).toFixed(1)}px"></i>
     <span class="ink-seg"></span>
     <button class="btn ghost small ${st.snap?"on":""}" data-act="snap" title="一笔画完的圆 / 方 / 直线自动摆正，写字不受影响">📐 整形</button>
     <span class="ink-seg"></span>
@@ -87,6 +92,26 @@ function inkWireBar(bar){
     const b = e.target.closest("button");
     if(b) inkBarAction(b);
   });
+  bar.addEventListener("input", e=>{
+    const r = e.target.closest("input.ink-range");
+    if(r) inkRangeInput(r);
+  });
+}
+/* 拉条实时生效：值进状态、标签和预览条跟着走，偏好节流 400ms 落一次 localStorage */
+let inkPrefTimer = 0;
+function inkRangeInput(r){
+  const st = inkPad; if(!st) return;
+  const v = +r.value;
+  if(r.dataset.k === "pen") st.penW = v;
+  else if(r.dataset.k === "hl") st.hlW = v;
+  else st.eraser = v;
+  const row = r.parentElement;
+  const lbl = row && row.querySelector(".ink-rv");
+  if(lbl) lbl.textContent = r.dataset.k === "pen" ? v.toFixed(1) : String(Math.round(v));
+  const prev = row && row.querySelector(".ink-prev");
+  if(prev) prev.style.height = Math.min(15, r.dataset.k === "hl" ? v/2.7 : v*2.8).toFixed(1) + "px";
+  clearTimeout(inkPrefTimer);
+  inkPrefTimer = setTimeout(inkSavePref, 400);
 }
 /* 工具栏和各个面板共用这一个处理函数（都按 data-* 匹配） */
 function inkBarAction(b){
@@ -98,11 +123,6 @@ function inkBarAction(b){
       if(st.tool === "highlighter") st.hlColor = +d.color; else st.color = +d.color;
       inkSavePref();
     }
-    else if(d.width !== undefined){
-      if(st.tool === "highlighter") st.hlWidth = +d.width; else st.width = +d.width;
-      inkSavePref();
-    }
-    else if(d.esize !== undefined){ st.eraser = +d.esize; inkSavePref(); }
     else if(d.lcolor !== undefined) inkLassoColor(+d.lcolor);
     else if(d.llayer !== undefined) inkLassoToLayer(+d.llayer);
     else if(d.layer !== undefined){
@@ -122,6 +142,8 @@ function inkBarAction(b){
       case "whole": st.eraseWhole = !st.eraseWhole; inkSavePref(); break;
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "ldel": return inkLassoDelete();
+      case "lcopy": return inkLassoShot(false);
+      case "lsave": return inkLassoShot(true);
       case "ldup": return inkLassoDup();
       case "lnone": st.lasso = null; inkInvalidate(); break;
       case "thumbs": st.thumbsOpen = !st.thumbsOpen; break;
@@ -391,7 +413,7 @@ function inkUnfullscreen(){
 /* ---- 开板 ---- */
 function inkOpen(cfg2){
   inkClose();
-  const pref = inkPenPref();
+  const pref = inkMigratePref(inkPenPref());
   inkPad = {
     qid: cfg2.qid || null,
     qHTML: cfg2.qHTML || "",
@@ -401,9 +423,9 @@ function inkOpen(cfg2){
     pages: cfg2.pages && cfg2.pages.length ? cfg2.pages : [[]],
     page: 0, activeLayer: 0,
     tool: "pen", input: inkInputMode(),
-    color: pref.color ?? 0, width: pref.width ?? 1,
-    hlColor: pref.hlColor ?? 4, hlWidth: pref.hlWidth ?? 1,
-    eraser: pref.eraser ?? 1,
+    color: pref.color ?? 0, penW: pref.penW ?? 1.8,
+    hlColor: pref.hlColor ?? 4, hlW: pref.hlW ?? 22,
+    eraser: pref.eraser ?? 22,
     eraseWhole: pref.eraseWhole ?? false,
     snap: pref.snap ?? false,
     snapAngle: false,

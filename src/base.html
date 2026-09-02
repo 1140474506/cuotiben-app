@@ -2562,6 +2562,35 @@ function buildPrintSheet(list){
     #toast{bottom:calc(74px + env(safe-area-inset-bottom,0px))}
     body{font-size:14.5px}
   }
+  /* ---- 练习纸专用样式 ----
+     这份模板复用了应用的整套 CSS，但练习纸自己的类（.pq/.ph/.pt/.pline/.pblank/.pa）
+     曾经一个都没定义：解答横线 .pline 高度为 0，行数选多少都挤成一团。 */
+  @page{size:A4; margin:14mm}
+  body{background:#fff}
+  h1{font-size:21px; font-weight:900; margin-bottom:4px; letter-spacing:.02em}
+  .sub{color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:18px;
+    padding-bottom:10px; border-bottom:2px solid var(--line)}
+  .pq{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+    padding:16px 18px 20px; margin-bottom:18px;
+    break-inside:avoid; page-break-inside:avoid}
+  .ph{font-weight:900; font-size:15.5px; margin-bottom:6px}
+  .pm{font-size:11.5px; color:var(--muted); font-weight:600}
+  .pt{line-height:1.85; font-size:15px; margin-top:4px; white-space:pre-wrap; overflow-wrap:anywhere}
+  .pq img{max-width:100%; max-height:70mm; display:block; margin:10px 0 2px;
+    border:1px solid var(--line-soft); border-radius:6px}
+  .pblank{margin-top:14px}
+  .pbl{font-size:12.5px; color:var(--muted); font-weight:700}
+  /* 解答横线：一条 34px 高的空行，printGap 选的是行数，行高在这里定 */
+  .pline{height:34px; border-bottom:1.5px solid var(--line-soft)}
+  .ansPage{break-before:page; page-break-before:always; padding-top:2mm}
+  .pa{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+    padding:12px 15px; margin-bottom:12px; line-height:1.75; font-size:14px;
+    break-inside:avoid; page-break-inside:avoid}
+  @media print{
+    body{font-size:13.5px}
+    .pq{margin-bottom:14px}
+    .pq, .pa{box-shadow:none}
+  }
 </style></head><body>
   <h1>错题练习纸</h1>
   <div class="sub">${APP_NAME} · 共 ${list.length} 题｜生成于 ${new Date().toLocaleString()}｜答案见最后一页</div>
@@ -2581,6 +2610,13 @@ function buildPrintSheet(list){
   $("pmDone").hidden = false;
   $("pmDone").scrollIntoView({block:"nearest"});
   $("btnDoPrint").onclick = ()=>{
+    /* 平板 APP：WebView 里 iframe.print() 是静默空操作，把整份 HTML 交给
+       原生打印服务（PrintManager）。网页端保持原来的 iframe 打印。 */
+    const bridge = window.AndroidBridge;
+    if(bridge && bridge.printHtml){
+      try{ bridge.printHtml("错题练习纸", html); toast("正在调起系统打印…"); return; }
+      catch(err){ /* 桥异常就落回网页路径 */ }
+    }
     try{ f.contentWindow.focus(); f.contentWindow.print(); }
     catch(err){ toast("打印失败，可先「存成 HTML」再用浏览器打开打印"); }
   };
@@ -3295,8 +3331,15 @@ function remindSchedule(){
     try{ b.scheduleReminder(cfg.remindOn ? 1 : 0, cfg.remindTime || "20:00"); }catch(e){}
   }
 }
-function remindFire(test){
-  const body = test ? "这是一条测试提醒，效果就是这样 ✅" : "今天的错题该复盘了，别让它们过夜 📚";
+async function remindFire(test){
+  let body = test ? "这是一条测试提醒，效果就是这样 ✅" : "今天的错题该复盘了，别让它们过夜 📚";
+  if(!test){
+    /* 到期数顺手数出来放进提醒里（dbAll 有缓存，一次整数比较的开销） */
+    try{
+      const n = (await dbAll()).filter(isDue).length;
+      if(n > 0) body = `今天有 ${n} 题到期该复盘了，别让它们过夜 📚`;
+    }catch(e){ }
+  }
   const b = window.AndroidBridge;
   if(b && b.notif){
     try{ b.notif(test ? "test" : "remind", "错了没 ⏰", body); return; }catch(e){}

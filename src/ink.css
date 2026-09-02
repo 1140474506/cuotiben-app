@@ -27,10 +27,18 @@
 .ink-dot{width:22px; height:22px; border-radius:50%; border:2px solid var(--text);
   box-shadow:2px 2px 0 var(--line); cursor:pointer; padding:0; flex:none; transition:transform .1s}
 .ink-dot.on{box-shadow:0 0 0 3px var(--blue); transform:scale(1.12)}
-.ink-wbtn{display:flex; align-items:center; justify-content:center; width:30px; height:26px;
-  border:2px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; flex:none; padding:0}
-.ink-wbtn.on{border-color:var(--blue); background:var(--blue-weak)}
-.ink-wbtn i{display:block; background:var(--text); border-radius:99px}
+/* 粗细/橡皮拉条：触摸友好（轨道加高、滑块做大），旁边配数值 + 粗细预览条 */
+.ink-range{flex:1 1 130px; min-width:110px; max-width:260px; height:34px; margin:0;
+  accent-color:var(--blue); background:transparent; -webkit-appearance:none; appearance:none}
+.ink-range::-webkit-slider-runnable-track{height:8px; border-radius:99px;
+  background:var(--line-soft); border:1px solid var(--line)}
+.ink-range::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; margin-top:-10px;
+  border-radius:50%; background:#fff; border:2.5px solid var(--blue); box-shadow:1px 1px 0 var(--line)}
+.ink-range::-moz-range-track{height:8px; border-radius:99px; background:var(--line-soft)}
+.ink-range::-moz-range-thumb{width:22px; height:22px; border-radius:50%;
+  background:#fff; border:2.5px solid var(--blue)}
+.ink-rv{min-width:2.4em; text-align:center; font-variant-numeric:tabular-nums}
+.ink-prev{display:block; flex:none; width:34px; background:var(--text); border-radius:99px}
 
 /* 全屏容器：顶栏 + 纸面 + 底部工具栏，纸面吃掉剩下的全部高度 */
 .inkfs{position:fixed; inset:0; z-index:150; background:var(--bg);

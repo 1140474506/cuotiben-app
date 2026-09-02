@@ -68,9 +68,19 @@ function inkSavePref(){
   const st = inkPad; if(!st) return;
   try{
     localStorage.setItem("cyt_inkpen", JSON.stringify({
-      color: st.color, width: st.width, eraser: st.eraser,
-      hlColor: st.hlColor, hlWidth: st.hlWidth, eraseWhole: st.eraseWhole, snap: st.snap}));
+      color: st.color, hlColor: st.hlColor,
+      penW: st.penW, hlW: st.hlW, eraser: st.eraser,
+      eraseWhole: st.eraseWhole, snap: st.snap}));
   }catch(e){}
+}
+/* 旧版本存的是档位下标（width/hlWidth/eraser∈0..2），拉条时代存真实值。
+   读档时顺手迁移，老用户无感升级。 */
+function inkMigratePref(pref){
+  if(pref.penW === undefined) pref.penW = INK_WIDTHS[pref.width ?? 1] ?? 1.8;
+  if(pref.hlW === undefined) pref.hlW = INK_HL_WIDTHS[pref.hlWidth ?? 1] ?? 22;
+  if(pref.eraser === undefined || pref.eraser <= 3)       // 旧 eraser 是 0..2 的下标
+    pref.eraser = INK_ERASERS[pref.eraser ?? 1] ?? 22;
+  return pref;
 }
 function inkPagesOf(ink){       // 旧格式（单页平铺）→ 页数组
   if(!ink || !ink.length) return [[]];

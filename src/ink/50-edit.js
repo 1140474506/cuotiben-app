@@ -149,8 +149,8 @@ function segDist2(px,py, ax,ay, bx,by){
 }
 function inkEraseRad(pressure){
   const st = inkPad;
-  const i = st ? (st.eraser ?? 1) : 1;
-  return INK_ERASERS[inkClamp(i,0,INK_ERASERS.length-1)] * (0.75 + 0.5*(pressure||0.4));
+  const base = st ? inkClamp(st.eraser || 22, 6, 80) : 22;
+  return base * (0.75 + 0.5*(pressure||0.4));
 }
 /* 在页 pi 上以 (x,y) 为圆心、rad 为半径擦一次。命中的删除都记到 batch 里。 */
 function inkEraseAt(pi, x, y, rad, batch){
