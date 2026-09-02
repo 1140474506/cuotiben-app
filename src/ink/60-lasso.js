@@ -199,6 +199,46 @@ async function inkLassoShot(save){
     toast("截图已保存");
   }, "image/png");
 }
+/* 套索圈住的题 → 直接进错题库（图片题）。
+   场景：笔记里对着导入的练习册写题，不会 / 写错就圈住题目一键入库，
+   复盘卡片会显示这张图，答案解析之后在题库里补。
+   图片压成 JPEG（白底黑字，比 PNG 小得多，同步快）。 */
+async function inkLassoToBank(){
+  const st = inkPad;
+  if(!st || !st.lasso || !st._map){ toast("先圈选题目区域"); return; }
+  const bb = st.lasso.bb;
+  if(!bb || bb[2]-bb[0] < 20 || bb[3]-bb[1] < 20){ toast("选区太小，圈大一点"); return; }
+  const m = st._map, dpr = st.dpr;
+  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
+  const pad = 20;
+  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
+  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
+  if(w < 8 || h < 8){ toast("选区太小，圈大一点"); return; }
+  const z = Math.min(2.5, 1500 / Math.max(w, h));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
+  const img = cv.toDataURL("image/jpeg", 0.85);
+  if(!img || img.length < 2000){ toast("截图失败，请重试"); return; }
+  /* 科目默认第一个，可以改；图片题的题干留空，卡片会显示「本题为图片」 */
+  const subject = (prompt("这道题属于哪个科目？", (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
+  if(!subject){ toast("已取消（没填科目）"); return; }
+  const q = {
+    id: "q_" + Date.now(),
+    subject, type: "图片题",
+    question: "", options: [], correctAns: "", analysis: "",
+    images: [img],
+    reason: 0, difficulty: 3,
+    createdAt: Date.now(), updatedAt: Date.now(),
+    reviews: [], failCount: 0, rightCount: 0
+  };
+  await dbPut(q);                 // dbPut 内部会 syncSoon()
+  refreshBadge();
+  toast("已存进错题库，今天就可以复盘它");
+}
+
 function inkLassoDelete(){
   const st = inkPad, L = st && st.lasso; if(!L) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;

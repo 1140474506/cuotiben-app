@@ -448,6 +448,13 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
+/* 笔记本文件夹条：文件夹从笔记数据派生，没有分类时整条隐藏 */
+.folder-chip{display:inline-flex; align-items:center; gap:5px; padding:6px 13px;
+  border:2px solid var(--line); border-radius:99px; background:var(--card);
+  cursor:pointer; font-size:13px; font-weight:bold; box-shadow:2px 2px 0 var(--line-soft)}
+.folder-chip.on{border-color:var(--blue); background:var(--blue-weak); color:var(--blue)}
+.folder-chip .fcnt{font-size:11px; color:var(--muted); font-weight:normal}
+
 /* 笔记本封面网格 */
 .nb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(146px,1fr)); gap:14px}
 .nb-card{position:relative; background:var(--card); border:2px solid var(--line); border-radius:10px;
@@ -751,6 +758,7 @@ B. 1
       </div>
     </div>
     <div class="muted" style="margin-bottom:10px">手写笔记：支持手写笔压感、防误触、图层、无限加页。导入 PDF 练习册就能直接在题目上写。</div>
+    <div id="noteFolders" class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div id="noteList" class="nb-grid"></div>
   </div>
 </section>
@@ -1016,6 +1024,16 @@ B. 1
         <option value="10">宽松（约 10 行）</option>
         <option value="16">超大（半页以上）</option>
       </select>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <span class="lbl" style="font-size:12.5px;color:var(--muted);font-weight:bold">纸张颜色</span>
+      <span id="paperSwatches" class="row" style="gap:7px;flex-wrap:wrap">
+        <button class="paper-dot on" data-paper="#ffffff" style="background:#ffffff" title="纯白（默认）"></button>
+        <button class="paper-dot" data-paper="#fdf6e3" style="background:#fdf6e3" title="米黄（护眼）"></button>
+        <button class="paper-dot" data-paper="#f0f7ee" style="background:#f0f7ee" title="淡绿（护眼）"></button>
+        <button class="paper-dot" data-paper="#fdf0f2" style="background:#fdf0f2" title="淡粉"></button>
+        <input type="color" id="printPaperCustom" title="自己调一个颜色" style="width:34px;height:26px;padding:0;border:2px solid var(--line);border-radius:8px;background:none;cursor:pointer">
+      </span>
     </div>
     <div class="muted" id="pmDone" hidden style="margin-top:12px; padding:10px;
       background:var(--green-weak); border-radius:8px; color:var(--green)">
@@ -1362,29 +1380,79 @@ function dbNbFileGet(id){
    inkFullscreenNotebook 那套自建 DOM——工具栏 class 和事件匹配的 class 对不上，
    整条工具栏点不动。现在列表封面画第一页缩略图，打开直接复用引擎的
    inkOpen({fullscreen})，工具栏/图层/缩略图/撤销全部天然可用。 */
+let noteFolder = "";        // "" = 全部；文件夹视图只影响列表显示，不动数据
 async function renderNotes(){
   const list = $("noteList");
   if(!list) return;
   list.innerHTML = "<div class='muted'>加载中...</div>";
   try{
     const notes = await dbNotesAll();
-    if(!notes.length){
-      list.innerHTML = "<div class='muted'>还没有笔记本。点右上角「新建笔记」，或把现成的 PDF 导进来直接在上面写。</div>";
+    /* 文件夹从笔记数据里派生（note.folder 字段），不单独存一份——
+       文件夹跟着笔记本身走云端同步，永远不会出现「列表里有文件夹但笔记里没有」。
+       没有分类过的笔记库，这里算出来是空数组，界面就是原来那个平铺列表。 */
+    const folders = [...new Set(notes.map(n=>n.folder).filter(Boolean))]
+      .sort((a,b)=> a.localeCompare(b, "zh"));
+    const bar = $("noteFolders");
+    if(bar){
+      if(folders.length){
+        bar.style.display = "";
+        bar.innerHTML = ["", ...folders].map(f=>{
+          const n = f ? notes.filter(x=>x.folder===f).length : notes.length;
+          return `<button class="chip folder-chip${noteFolder===f?" on":""}" data-folder="${esc(f)}">${f?"📁 "+esc(f):"全部"}<span class="fcnt">${n}</span></button>`;
+        }).join("");
+      }else{
+        bar.style.display = "none";
+        bar.innerHTML = "";
+      }
+    }
+    if(noteFolder && !folders.includes(noteFolder)) noteFolder = "";   // 文件夹被搬空了就回全部
+    const shown = noteFolder ? notes.filter(n=>n.folder===noteFolder) : notes;
+    if(!shown.length){
+      list.innerHTML = `<div class='muted'>${noteFolder
+        ? `「${esc(noteFolder)}」里还没有笔记。卡片上的 🗂 可以把笔记移进来。`
+        : "还没有笔记本。点右上角「新建笔记」，或把现成的 PDF 导进来直接在上面写。"}</div>`;
       return;
     }
-    list.innerHTML = notes.map(n=>`
+    list.innerHTML = shown.map(n=>`
       <div class="nb-card" onclick="noteOpen('${n.id}')">
         <div class="nb-cover"><canvas width="292" height="264"></canvas></div>
         <div class="nm">${esc(n.title || "未命名")}</div>
-        <div class="sub">${n.pages ? n.pages.length : 0} 页 · ${relTime(n.updatedAt)}</div>
-        <button class="btn ghost small del" title="删除" onclick="event.stopPropagation(); noteDelConfirm('${n.id}')">🗑</button>
+        <div class="sub">${n.folder ? esc(n.folder) + " · " : ""}${n.pages ? n.pages.length : 0} 页 · ${relTime(n.updatedAt)}</div>
+        <button class="btn ghost small del" title="移到文件夹（输入新名字会新建）" onclick="event.stopPropagation(); noteMove('${n.id}')">🗂</button>
+        <button class="btn ghost small del" style="right:44px" title="删除" onclick="event.stopPropagation(); noteDelConfirm('${n.id}')">🗑</button>
       </div>`).join("");
     const cvs = list.querySelectorAll(".nb-cover canvas");
-    notes.forEach((n, i)=>{ if(cvs[i]) noteCoverPaint(cvs[i], n); });
+    shown.forEach((n, i)=>{ if(cvs[i]) noteCoverPaint(cvs[i], n); });
   }catch(e){
     list.innerHTML = "<div class='muted'>加载失败，刷新试试</div>";
   }
 }
+/* 文件夹条点击：切视图（不动数据） */
+(function(){
+  const bar = typeof $ !== "undefined" && $("noteFolders");
+  if(bar) bar.addEventListener("click", e=>{
+    const c = e.target.closest(".folder-chip");
+    if(!c) return;
+    noteFolder = c.dataset.folder || "";
+    renderNotes();
+  });
+})();
+
+/* 移动到文件夹：直接输入名字（新名字 = 新建），留空 = 不分类 */
+async function noteMove(id){
+  const all = await dbNotesAll();
+  const n = all.find(x=>x.id===id);
+  if(!n) return;
+  const names = [...new Set(all.map(x=>x.folder).filter(Boolean))].join(" / ");
+  const msg = "放进哪个文件夹？\n（输入新名字会自动新建；留空 = 不分类）" + (names ? "\n现有：" + names : "");
+  const v = (prompt(msg, n.folder || "") || "").trim().slice(0, 12);
+  if(v === (n.folder || "")) return;
+  if(v){ n.folder = v; } else { delete n.folder; }
+  await dbNotePut(n);
+  renderNotes();
+  toast(v ? `已移入「${v}」` : "已移出文件夹");
+}
+
 /* 封面 = 第一页缩略图。图片背景页先把图取出来再画，不然封面永远是一张白纸 */
 async function noteCoverPaint(cv, n){
   const pg = n.pages && n.pages[0];
@@ -3519,6 +3587,46 @@ async function inkLassoShot(save){
     toast("截图已保存");
   }, "image/png");
 }
+/* 套索圈住的题 → 直接进错题库（图片题）。
+   场景：笔记里对着导入的练习册写题，不会 / 写错就圈住题目一键入库，
+   复盘卡片会显示这张图，答案解析之后在题库里补。
+   图片压成 JPEG（白底黑字，比 PNG 小得多，同步快）。 */
+async function inkLassoToBank(){
+  const st = inkPad;
+  if(!st || !st.lasso || !st._map){ toast("先圈选题目区域"); return; }
+  const bb = st.lasso.bb;
+  if(!bb || bb[2]-bb[0] < 20 || bb[3]-bb[1] < 20){ toast("选区太小，圈大一点"); return; }
+  const m = st._map, dpr = st.dpr;
+  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
+  const pad = 20;
+  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
+  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
+  if(w < 8 || h < 8){ toast("选区太小，圈大一点"); return; }
+  const z = Math.min(2.5, 1500 / Math.max(w, h));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
+  const img = cv.toDataURL("image/jpeg", 0.85);
+  if(!img || img.length < 2000){ toast("截图失败，请重试"); return; }
+  /* 科目默认第一个，可以改；图片题的题干留空，卡片会显示「本题为图片」 */
+  const subject = (prompt("这道题属于哪个科目？", (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
+  if(!subject){ toast("已取消（没填科目）"); return; }
+  const q = {
+    id: "q_" + Date.now(),
+    subject, type: "图片题",
+    question: "", options: [], correctAns: "", analysis: "",
+    images: [img],
+    reason: 0, difficulty: 3,
+    createdAt: Date.now(), updatedAt: Date.now(),
+    reviews: [], failCount: 0, rightCount: 0
+  };
+  await dbPut(q);                 // dbPut 内部会 syncSoon()
+  refreshBadge();
+  toast("已存进错题库，今天就可以复盘它");
+}
+
 function inkLassoDelete(){
   const st = inkPad, L = st && st.lasso; if(!L) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;
@@ -4207,6 +4315,7 @@ function inkToolbarHTML(){
       <span class="lbl">选中 ${st.lasso.items.length} 笔</span>
       ${INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("")}
       <button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <button class="btn ghost small" data-act="lbank" title="把圈住的题截下来存进错题库（自动生成图片题，今天就能复盘）">📤 入题库</button>
       <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
       <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>
@@ -4309,6 +4418,7 @@ function inkBarAction(b){
       case "whole": st.eraseWhole = !st.eraseWhole; inkSavePref(); break;
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "ldel": return inkLassoDelete();
+      case "lbank": return inkLassoToBank();
       case "lcopy": return inkLassoShot(false);
       case "lsave": return inkLassoShot(true);
       case "ldup": return inkLassoDup();
@@ -5175,6 +5285,7 @@ let bankFilterTimer = null;
 function buildPrintSheet(list){
   const lineCount = Math.max(1, parseInt($("printGap").value, 10) || 6);
   cfg.printGap = lineCount; saveCfg();   // 只记在本机；它不在同步字段里，不会推给别的设备
+  const paper = cfg.printPaper || "#ffffff";   // 纸张颜色同样只记本机
   /* 答题区用「一条条 border-bottom 的空 div」画横线，而不是背景渐变：
      浏览器打印默认关掉背景图，渐变画的线在纸上会整片消失，边框不受这个开关影响。
      行数交给用户选——英语选择题给三行就够，数学证明题十行都嫌少。 */
@@ -5468,24 +5579,24 @@ function buildPrintSheet(list){
      这份模板复用了应用的整套 CSS，但练习纸自己的类（.pq/.ph/.pt/.pline/.pblank/.pa）
      曾经一个都没定义：解答横线 .pline 高度为 0，行数选多少都挤成一团。 */
   @page{size:A4; margin:14mm}
-  body{background:#fff}
+  body{background:${paper}}
   h1{font-size:21px; font-weight:900; margin-bottom:4px; letter-spacing:.02em}
-  .sub{color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:18px;
-    padding-bottom:10px; border-bottom:2px solid var(--line)}
-  .pq{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+  .sub{color:#767676; font-size:12.5px; font-weight:600; margin-bottom:18px;
+    padding-bottom:10px; border-bottom:2px solid #9a9a9a}
+  .pq{border:2px solid #8c8c8c; border-radius:10px; background:transparent;
     padding:16px 18px 20px; margin-bottom:18px;
     break-inside:avoid; page-break-inside:avoid}
   .ph{font-weight:900; font-size:15.5px; margin-bottom:6px}
-  .pm{font-size:11.5px; color:var(--muted); font-weight:600}
+  .pm{font-size:11.5px; color:#767676; font-weight:600}
   .pt{line-height:1.85; font-size:15px; margin-top:4px; white-space:pre-wrap; overflow-wrap:anywhere}
   .pq img{max-width:100%; max-height:70mm; display:block; margin:10px 0 2px;
-    border:1px solid var(--line-soft); border-radius:6px}
+    border:1px solid #ddd; border-radius:6px}
   .pblank{margin-top:14px}
-  .pbl{font-size:12.5px; color:var(--muted); font-weight:700}
+  .pbl{font-size:12.5px; color:#767676; font-weight:700}
   /* 解答横线：一条 34px 高的空行，printGap 选的是行数，行高在这里定 */
-  .pline{height:34px; border-bottom:1.5px solid var(--line-soft)}
+  .pline{height:34px; border-bottom:1.5px solid #cfcfcf}
   .ansPage{break-before:page; page-break-before:always; padding-top:2mm}
-  .pa{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+  .pa{border:2px solid #8c8c8c; border-radius:10px; background:transparent;
     padding:12px 15px; margin-bottom:12px; line-height:1.75; font-size:14px;
     break-inside:avoid; page-break-inside:avoid}
   @media print{
@@ -5528,10 +5639,15 @@ function buildPrintSheet(list){
   };
   $("btnDoPrintInk").onclick = async ()=>{
     closePrintModal();
-    const title = `练习纸_${new Date().toISOString().slice(0,10)}`;
+    /* 自动归类：这批题全是同一科目 → 文件夹就叫科目名（高数的练习纸都进「高数」）；
+       混了科目 → 进「混合」。标题也带上科目，在「全部」视图里一眼可辨。 */
+    const subs = [...new Set(list.map(q=>q.subject).filter(Boolean))];
+    const folder = subs.length === 1 ? subs[0] : (subs.length ? "混合" : "");
+    const title = (folder ? folder + "练习纸_" : "练习纸_") + new Date().toISOString().slice(0,10);
     const n = {
       id: "nb_" + Date.now(),
       title,
+      ...(folder ? {folder} : {}),
       cover: "#5c88ff",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -6204,6 +6320,28 @@ $("btnSaveCfg").addEventListener("click", ()=>{
     ? "✅ 已保存，正在同步到其它设备…" : "✅ 已保存";
   toast("设置已保存");
 });
+/* 练习纸纸张颜色：默认纯白，四个护眼预设 + 自定义色轮。边框横线是中性灰，
+   不带任何主题色——打印的纸就该像纸。选择只记本机。 */
+$("paperSwatches").addEventListener("click", e=>{
+  const d = e.target.closest(".paper-dot");
+  if(!d) return;
+  cfg.printPaper = d.dataset.paper; saveCfg();
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.toggle("on", x === d));
+  $("printPaperCustom").value = cfg.printPaper;
+});
+$("printPaperCustom").addEventListener("input", e=>{
+  cfg.printPaper = e.target.value; saveCfg();
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.remove("on"));
+});
+try{
+  const saved = cfg.printPaper || "#ffffff";
+  $("printPaperCustom").value = saved;
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.toggle("on", (x.dataset.paper || "").toLowerCase() === saved.toLowerCase()));
+}catch(e){}
+
 $("btnSaveIntervals").addEventListener("click", ()=>{
   const arr = $("cfgIntervals").value.split(/[,，\s]+/).map(Number).filter(n=>n>0);
   if(arr.length<2){ toast("至少填两个间隔"); return; }

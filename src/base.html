@@ -884,6 +884,16 @@ B. 1
         <option value="16">超大（半页以上）</option>
       </select>
     </div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <span class="lbl" style="font-size:12.5px;color:var(--muted);font-weight:bold">纸张颜色</span>
+      <span id="paperSwatches" class="row" style="gap:7px;flex-wrap:wrap">
+        <button class="paper-dot on" data-paper="#ffffff" style="background:#ffffff" title="纯白（默认）"></button>
+        <button class="paper-dot" data-paper="#fdf6e3" style="background:#fdf6e3" title="米黄（护眼）"></button>
+        <button class="paper-dot" data-paper="#f0f7ee" style="background:#f0f7ee" title="淡绿（护眼）"></button>
+        <button class="paper-dot" data-paper="#fdf0f2" style="background:#fdf0f2" title="淡粉"></button>
+        <input type="color" id="printPaperCustom" title="自己调一个颜色" style="width:34px;height:26px;padding:0;border:2px solid var(--line);border-radius:8px;background:none;cursor:pointer">
+      </span>
+    </div>
     <div class="muted" id="pmDone" hidden style="margin-top:12px; padding:10px;
       background:var(--green-weak); border-radius:8px; color:var(--green)">
       <div id="pmDoneTxt"></div>
@@ -2396,6 +2406,7 @@ let bankFilterTimer = null;
 function buildPrintSheet(list){
   const lineCount = Math.max(1, parseInt($("printGap").value, 10) || 6);
   cfg.printGap = lineCount; saveCfg();   // 只记在本机；它不在同步字段里，不会推给别的设备
+  const paper = cfg.printPaper || "#ffffff";   // 纸张颜色同样只记本机
   /* 答题区用「一条条 border-bottom 的空 div」画横线，而不是背景渐变：
      浏览器打印默认关掉背景图，渐变画的线在纸上会整片消失，边框不受这个开关影响。
      行数交给用户选——英语选择题给三行就够，数学证明题十行都嫌少。 */
@@ -2689,24 +2700,24 @@ function buildPrintSheet(list){
      这份模板复用了应用的整套 CSS，但练习纸自己的类（.pq/.ph/.pt/.pline/.pblank/.pa）
      曾经一个都没定义：解答横线 .pline 高度为 0，行数选多少都挤成一团。 */
   @page{size:A4; margin:14mm}
-  body{background:#fff}
+  body{background:${paper}}
   h1{font-size:21px; font-weight:900; margin-bottom:4px; letter-spacing:.02em}
-  .sub{color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:18px;
-    padding-bottom:10px; border-bottom:2px solid var(--line)}
-  .pq{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+  .sub{color:#767676; font-size:12.5px; font-weight:600; margin-bottom:18px;
+    padding-bottom:10px; border-bottom:2px solid #9a9a9a}
+  .pq{border:2px solid #8c8c8c; border-radius:10px; background:transparent;
     padding:16px 18px 20px; margin-bottom:18px;
     break-inside:avoid; page-break-inside:avoid}
   .ph{font-weight:900; font-size:15.5px; margin-bottom:6px}
-  .pm{font-size:11.5px; color:var(--muted); font-weight:600}
+  .pm{font-size:11.5px; color:#767676; font-weight:600}
   .pt{line-height:1.85; font-size:15px; margin-top:4px; white-space:pre-wrap; overflow-wrap:anywhere}
   .pq img{max-width:100%; max-height:70mm; display:block; margin:10px 0 2px;
-    border:1px solid var(--line-soft); border-radius:6px}
+    border:1px solid #ddd; border-radius:6px}
   .pblank{margin-top:14px}
-  .pbl{font-size:12.5px; color:var(--muted); font-weight:700}
+  .pbl{font-size:12.5px; color:#767676; font-weight:700}
   /* 解答横线：一条 34px 高的空行，printGap 选的是行数，行高在这里定 */
-  .pline{height:34px; border-bottom:1.5px solid var(--line-soft)}
+  .pline{height:34px; border-bottom:1.5px solid #cfcfcf}
   .ansPage{break-before:page; page-break-before:always; padding-top:2mm}
-  .pa{border:2px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+  .pa{border:2px solid #8c8c8c; border-radius:10px; background:transparent;
     padding:12px 15px; margin-bottom:12px; line-height:1.75; font-size:14px;
     break-inside:avoid; page-break-inside:avoid}
   @media print{
@@ -2749,10 +2760,15 @@ function buildPrintSheet(list){
   };
   $("btnDoPrintInk").onclick = async ()=>{
     closePrintModal();
-    const title = `练习纸_${new Date().toISOString().slice(0,10)}`;
+    /* 自动归类：这批题全是同一科目 → 文件夹就叫科目名（高数的练习纸都进「高数」）；
+       混了科目 → 进「混合」。标题也带上科目，在「全部」视图里一眼可辨。 */
+    const subs = [...new Set(list.map(q=>q.subject).filter(Boolean))];
+    const folder = subs.length === 1 ? subs[0] : (subs.length ? "混合" : "");
+    const title = (folder ? folder + "练习纸_" : "练习纸_") + new Date().toISOString().slice(0,10);
     const n = {
       id: "nb_" + Date.now(),
       title,
+      ...(folder ? {folder} : {}),
       cover: "#5c88ff",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -3425,6 +3441,28 @@ $("btnSaveCfg").addEventListener("click", ()=>{
     ? "✅ 已保存，正在同步到其它设备…" : "✅ 已保存";
   toast("设置已保存");
 });
+/* 练习纸纸张颜色：默认纯白，四个护眼预设 + 自定义色轮。边框横线是中性灰，
+   不带任何主题色——打印的纸就该像纸。选择只记本机。 */
+$("paperSwatches").addEventListener("click", e=>{
+  const d = e.target.closest(".paper-dot");
+  if(!d) return;
+  cfg.printPaper = d.dataset.paper; saveCfg();
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.toggle("on", x === d));
+  $("printPaperCustom").value = cfg.printPaper;
+});
+$("printPaperCustom").addEventListener("input", e=>{
+  cfg.printPaper = e.target.value; saveCfg();
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.remove("on"));
+});
+try{
+  const saved = cfg.printPaper || "#ffffff";
+  $("printPaperCustom").value = saved;
+  document.querySelectorAll("#paperSwatches .paper-dot").forEach(x=>
+    x.classList.toggle("on", (x.dataset.paper || "").toLowerCase() === saved.toLowerCase()));
+}catch(e){}
+
 $("btnSaveIntervals").addEventListener("click", ()=>{
   const arr = $("cfgIntervals").value.split(/[,，\s]+/).map(Number).filter(n=>n>0);
   if(arr.length<2){ toast("至少填两个间隔"); return; }

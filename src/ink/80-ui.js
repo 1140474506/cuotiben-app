@@ -40,6 +40,7 @@ function inkToolbarHTML(){
       <span class="lbl">选中 ${st.lasso.items.length} 笔</span>
       ${INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("")}
       <button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <button class="btn ghost small" data-act="lbank" title="把圈住的题截下来存进错题库（自动生成图片题，今天就能复盘）">📤 入题库</button>
       <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
       <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>
@@ -142,6 +143,7 @@ function inkBarAction(b){
       case "whole": st.eraseWhole = !st.eraseWhole; inkSavePref(); break;
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "ldel": return inkLassoDelete();
+      case "lbank": return inkLassoToBank();
       case "lcopy": return inkLassoShot(false);
       case "lsave": return inkLassoShot(true);
       case "ldup": return inkLassoDup();
