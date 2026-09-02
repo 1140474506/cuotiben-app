@@ -52,3 +52,19 @@ dst = os.path.join(ROOT, "index.html")
 with io.open(dst, "w", encoding="utf-8", newline="\n") as f:
     f.write(out)
 print("built index.html: %d lines, %.2f MB" % (out.count("\n") + 1, len(out.encode("utf-8")) / 1048576.0))
+
+# APK 版本号文件：APP 打开时拿它和自己的 versionCode 对比，有新版就引导
+# 下载安装（壳里的自更新流程读的就是这个 json，改壳版本时不用记得手填）。
+import re as _re
+mf = os.path.join(ROOT, "android", "AndroidManifest.xml")
+if os.path.exists(mf):
+    mft = read(mf)
+    code = _re.search(r'versionCode="(\d+)"', mft)
+    name = _re.search(r'versionName="([^"]+)"', mft)
+    if code and name:
+        ver = '{"code": %s, "name": "%s"}\n' % (code.group(1), name.group(1))
+        vf = os.path.join(ROOT, "apk-version.json")
+        if not (os.path.exists(vf) and read(vf) == ver):
+            with io.open(vf, "w", encoding="utf-8", newline="\n") as f:
+                f.write(ver)
+            print("apk-version.json -> code %s, name %s" % (code.group(1), name.group(1)))

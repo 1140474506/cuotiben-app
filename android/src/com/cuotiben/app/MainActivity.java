@@ -5,13 +5,16 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.StrictMode;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
 import android.os.Looper;
@@ -57,6 +60,8 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private WebView printWeb;   // 打印用的离屏 WebView（渲染完交给系统打印服务）
+    private long apkDlId = -1;      // 自更新 APK 的下载任务 id
+    private BroadcastReceiver dlDone;
     private ValueCallback<Uri[]> fileCb;
     private String pendingName = "导出.pdf";
     private String pendingMime = "application/pdf";
@@ -69,6 +74,20 @@ public class MainActivity extends Activity {
         setContentView(web);
         // 每次打开都把提醒闹钟排一遍（时间没变就是刷新，重启后被清空的也补上）
         RemindUtil.scheduleNext(this);
+        // 自更新：下载完成的广播 → 弹安装界面。系统保护广播，动态注册即可
+        dlDone = new BroadcastReceiver() {
+            @Override public void onReceive(Context c, Intent i) {
+                long id = i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                if(id == apkDlId) installApk(id);
+            }
+        };
+        IntentFilter dlF = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= 33) {
+            try { registerReceiver(dlDone, dlF, Context.RECEIVER_NOT_EXPORTED); }
+            catch (Throwable e) { registerReceiver(dlDone, dlF); }
+        } else {
+            registerReceiver(dlDone, dlF);
+        }
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -283,6 +302,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (dlDone != null) { try { unregisterReceiver(dlDone); } catch (Throwable ignored) { } }
         if (web != null) web.destroy();
         if (printWeb != null) { try { printWeb.destroy(); } catch (Throwable ignored) { } }
         super.onDestroy();
@@ -338,6 +358,41 @@ public class MainActivity extends Activity {
         public void saveFailed() {
             new Handler(Looper.getMainLooper()).post(() ->
                     Toast.makeText(MainActivity.this, "导出失败，请重试", Toast.LENGTH_SHORT).show());
+        }
+
+        /** 当前壳版本（"versionCode|versionName"），网页拿它和 apk-version.json 对比 */
+        @JavascriptInterface
+        public String appVer() {
+            try {
+                android.content.pm.PackageInfo pi =
+                        getPackageManager().getPackageInfo(getPackageName(), 0);
+                return pi.versionCode + "|" + pi.versionName;
+            } catch (Throwable e) { return "0|0"; }
+        }
+
+        /** 下载新版 APK 并在完成后弹安装（覆盖安装，数据不动）。
+            顺手先把「安装未知应用」的开关引出来，用户批的时候下载正好在跑。 */
+        @JavascriptInterface
+        public void updateApk(final String url, final String name) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    if (Build.VERSION.SDK_INT >= 26 &&
+                            !getPackageManager().canRequestPackageInstalls()) {
+                        requestPermissions(new String[]{
+                                "android.permission.REQUEST_INSTALL_PACKAGES"}, REQ_NOTIF);
+                    }
+                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    apkDlId = dm.enqueue(new DownloadManager.Request(Uri.parse(url))
+                            .setTitle(name)
+                            .setMimeType("application/vnd.android.package-archive")
+                            .setNotificationVisibility(
+                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED));
+                    Toast.makeText(MainActivity.this, "正在下载更新…", Toast.LENGTH_SHORT).show();
+                } catch (Throwable e) {
+                    Toast.makeText(MainActivity.this,
+                            "下载失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
         }
 
         /** 网页的「打印练习纸」：WebView 里 iframe.print() 是静默空操作，
@@ -418,6 +473,26 @@ public class MainActivity extends Activity {
                             .setMediaSize(PrintAttributes.MediaSize.ISO_A4).build());
         } catch (Throwable e) {
             Toast.makeText(this, "调起打印失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** 下载完了的 APK 弹系统安装界面。Android 7-9 的 DownloadManager 给的是
+        file:// URI，targetSdk 24+ 直接 startActivity 会 FileUriExposedException，
+        放宽一次 VmPolicy 是无 androidx 依赖下的标准替代（10+ 走 content:// 不受影响）。 */
+    private void installApk(long id) {
+        try {
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            Uri uri = dm.getUriForDownloadedFile(id);
+            if (uri == null) return;
+            if (Build.VERSION.SDK_INT < 29) {
+                StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().penaltyLog().build());
+            }
+            Intent it = new Intent(Intent.ACTION_VIEW);
+            it.setDataAndType(uri, "application/vnd.android.package-archive");
+            it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(it);
+        } catch (Throwable e) {
+            Toast.makeText(this, "请到「下载」里手动安装：" + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 }

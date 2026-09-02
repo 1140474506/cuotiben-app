@@ -89,11 +89,7 @@ async function inkExportPDF(){
     }
     /* 下载走 blob（APP 里经下载桥存进系统「下载」，网页端是普通下载） */
     const blob = inkMakePDF(sheets);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = (st.note.title || "笔记") + ".pdf";
-    a.click();
-    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+    appDownload(blob, (st.note.title || "笔记") + ".pdf", "application/pdf");
     if(hasHtml) toast("已导出。练习纸页导出的是手写层，印刷内容请用打印功能生成");
     else toast("已导出 PDF");
   }catch(e){

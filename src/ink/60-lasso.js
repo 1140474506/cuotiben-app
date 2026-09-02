@@ -195,11 +195,7 @@ async function inkLassoShot(save){
         return;
       }catch(e){ toast("这台设备不让复制图片，改为保存"); }
     }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `错题截图_${new Date().toISOString().slice(0,10)}.png`;
-    a.click();
-    setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+    appDownload(blob, `错题截图_${new Date().toISOString().slice(0,10)}.png`, "image/png");
     toast("截图已保存");
   }, "image/png");
 }
