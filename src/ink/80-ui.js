@@ -37,14 +37,14 @@ function inkToolbarHTML(){
     ${st.fs?"":`<button class="btn ghost small" data-act="fs" title="全屏书写">⛶ 全屏</button>`}
     ${st.lasso?`
     <div class="inkset">
-      <span class="lbl">选中 ${st.lasso.items.length} 笔</span>
-      ${INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("")}
-      <button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <span class="lbl">${st.lasso.items.length ? `选中 ${st.lasso.items.length} 笔` : "截图区域"}</span>
+      ${st.lasso.items.length ? INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("") : ""}
+      ${st.lasso.items.length ? `<button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
+      <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>` : ""}
       <button class="btn ghost small" data-act="lbank" title="把圈住的题截下来存进错题库（自动生成图片题，今天就能复盘）">📤 入题库</button>
       <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
       <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
-      <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>
-      ${layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
+      ${st.lasso.items.length && layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
       <button class="btn ghost small" data-act="lnone" title="取消选择（Esc）">✕</button>
     </div>`:st.settingsOpen?`
@@ -524,6 +524,7 @@ window.inkView = async function(id){
   const pages = inkPagesOf(last.ink);
   const wrap = document.createElement("div");
   wrap.className = "inkfs";
+  wrap.dataset.viewer = "1";        // 标记：返回键据此区分「看手写浮层」和手写全屏
   wrap.innerHTML = `
     <div class="inkfs-top">
       <button class="btn small" data-close="1">🔙 返回</button>

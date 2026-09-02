@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -267,27 +269,30 @@ public class MainActivity extends Activity {
         super.onActivityResult(req, res, data);
     }
 
-    // ---------- 返回键：双击退出。第一下先把没落库的笔迹抢存一次 ----------
+    // ---------- 返回键：先问页面能不能「返回上一级」（关弹窗/退全屏），
+    // 页面说没有上一层了，才走「再按一次退出」。 ----------
     @Override
     public void onBackPressed() {
-        long now = System.currentTimeMillis();
-        if (now - lastBack < 2000) {
-            // 尽力冲一次存档再退（IndexedDB 是异步的，双击的 2 秒窗口足够）
-            try {
-                web.evaluateJavascript(
-                    "(function(){try{if(window.inkPad&&inkPad.note&&inkPad.saveFn)inkPad.saveFn()}catch(e){}})()",
-                    null);
-            } catch (Throwable ignored) { }
-            finish();
-            return;
-        }
-        lastBack = now;
         try {
             web.evaluateJavascript(
-                "(function(){try{if(window.inkPad&&inkPad.note&&inkPad.saveFn)inkPad.saveFn()}catch(e){}})()",
-                null);
-        } catch (Throwable ignored) { }
-        Toast.makeText(this, "再按一次退出（正在保存手写…）", Toast.LENGTH_SHORT).show();
+                "(function(){try{return window.appGoBack ? (appGoBack() ? 1 : 0) : -1}catch(e){return -1}})()",
+                value -> {
+                    String v = value == null ? "-1" : value.replace("\\n", "");
+                    if ("1".equals(v)) return;          // 页面自己消化了（关掉了一层界面）
+                    // 没有上一层：顺手抢存一次手写，再走双击退出
+                    try {
+                        web.evaluateJavascript(
+                            "(function(){try{if(window.inkPad&&inkPad.note&&inkPad.saveFn)inkPad.saveFn()}catch(e){}})()",
+                            null);
+                    } catch (Throwable ignored) { }
+                    long now = System.currentTimeMillis();
+                    if (now - lastBack < 2000) { finish(); return; }
+                    lastBack = now;
+                    Toast.makeText(MainActivity.this, "再按一次退出（正在保存手写…）", Toast.LENGTH_SHORT).show();
+                });
+        } catch (Throwable e) {
+            super.onBackPressed();
+        }
     }
 
     @Override
@@ -391,6 +396,49 @@ public class MainActivity extends Activity {
                 } catch (Throwable e) {
                     Toast.makeText(MainActivity.this,
                             "下载失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+        /** 图片复制进系统剪贴板。Android 剪贴板不收裸图片字节，标准做法：
+            图片写进 MediaStore 拿 content:// URI，再把 URI 放进 ClipData——
+            微信/QQ 等都能直接粘贴这种图。 */
+        @JavascriptInterface
+        public void copyImage(final String name, final String b64) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    byte[] bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+                    ContentValues cv = new ContentValues();
+                    cv.put(MediaStore.Images.Media.DISPLAY_NAME,
+                            (name == null ? "clipboard" : name) + ".png");
+                    cv.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+                    Uri uri;
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        cv.put(MediaStore.Images.Media.RELATIVE_PATH,
+                                Environment.DIRECTORY_PICTURES + "/错了没");
+                        uri = getContentResolver().insert(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                        if (uri == null) throw new IllegalStateException("无法创建图片");
+                        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                            os.write(bytes);
+                        }
+                    } else {
+                        // 旧系统：写文件 + MediaStore 索引成 content://（file:// 别的 App 读不了）
+                        File dir = new File(Environment.getExternalStoragePublicDirectory(
+                                Environment.DIRECTORY_PICTURES), "错了没");
+                        if (!dir.exists()) dir.mkdirs();
+                        File f = new File(dir, (name == null ? "clipboard" : name) + ".png");
+                        try (FileOutputStream fo = new FileOutputStream(f)) { fo.write(bytes); }
+                        cv.put(MediaStore.Images.Media.DATA, f.getAbsolutePath());
+                        uri = getContentResolver().insert(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                    }
+                    ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    cm.setPrimaryClip(ClipData.newUri(getContentResolver(), "错了没截图", uri));
+                    Toast.makeText(MainActivity.this, "已复制到剪贴板，去粘贴吧", Toast.LENGTH_SHORT).show();
+                } catch (Throwable e) {
+                    Toast.makeText(MainActivity.this,
+                            "复制失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
                 }
             });
         }

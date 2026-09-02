@@ -3613,6 +3613,27 @@ async function appUpdateCheck(){
 }
 appUpdateCheck();
 
+/* ---------------- 返回键统一入口 ----------------
+   平板的物理/手势返回键经壳（MainActivity）调到这里。逻辑 = 「关掉最上层
+   的那层界面」：图片弹窗 → 编辑弹窗 → 打印面板 → 手写全屏/看手写 → 都没有
+   才返回 false，让壳走「再按一次退出」。 */
+window.appGoBack = function(){
+  for(const id of ["imgModal", "editModal"]){
+    const m = $(id);
+    if(m && !m.hidden){ m.hidden = true; return true; }
+  }
+  if($("printModal") && !$("printModal").hidden){ closePrintModal(); return true; }
+  /* 只读的「看上次手写」浮层（不是 inkPad 的全屏） */
+  const viewer = document.querySelector(".inkfs[data-viewer]");
+  if(viewer){ viewer.remove(); return true; }
+  /* 手写全屏：笔记回列表、错题演算退全屏 */
+  if(typeof inkPad !== "undefined" && inkPad && inkPad.fs){
+    inkUnfullscreen();
+    return true;
+  }
+  return false;
+};
+
 /* ---------------- 科目管理 ----------------
    每行一个科目：输入框改名字（data-orig 记着原名），✕ 删行。
    真正生效要等「保存科目」—— 一次性校验重名 / 空名 / 残留题目，

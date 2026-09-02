@@ -31,16 +31,20 @@ function inkRender(){
     const w = inkPageW(pg), h = inkPageH(pg);
     const [px, py] = inkPageOrigin(i, lay);
     if(py > vis[3] || py + h < vis[1]) continue;      // 这一页整个在屏外
-    /* 无限画布页：没有纸的概念，不画阴影/边框/页码，底纹按可见区裁着画 */
+    /* 无限画布页：没有纸的概念，不画阴影/边框/页码，底纹按可见区裁着画。
+       练习纸页（html 背景）同样不画阴影——阴影是 13% 的半透明深色，
+       空白页会被随后刷的白底盖住，而 html 页不刷白底，整张练习纸
+       就被罩成灰的（rgba(43,58,74,.13) 叠白 ≈ #e4e6e8）。 */
     const inf = !Array.isArray(pg) && !!pg.infinite;
+    const htmlPage = !Array.isArray(pg) && pg.bgType === "html";
     ctx.save();
     ctx.translate(px, py);
     if(!st.transparent){
-      if(!inf && shadow){
+      if(!inf && !htmlPage && shadow){
         ctx.fillStyle = "rgba(43,58,74,.13)";
         ctx.fillRect(3/m.k, 3/m.k, w, h);
       }
-      inkPaintBg(ctx, pg, w, h, [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py]);
+      if(!htmlPage) inkPaintBg(ctx, pg, w, h, [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py]);
     }
     const clip = [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py];
     inkPaintStrokes(ctx, inkStrokesOf(pg, -1), clip);

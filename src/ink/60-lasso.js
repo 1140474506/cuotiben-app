@@ -52,12 +52,10 @@ function inkLassoEnd(poly){
   const layer = Array.isArray(pg) ? 0 : inkClamp(st.activeLayer|0, 0, (pg.layers||[]).length-1);
   const arr = Array.isArray(pg) ? pg : (pg.layers[layer] ? pg.layers[layer].strokes : []);
   const items = arr.filter(s => inkStrokeInPoly(s, poly, [x0,y0,x1,y1]));
-  if(!items.length){
-    st.lasso = null; inkInvalidate();
-    toast("套索里没有圈到笔迹");
-    return;
-  }
-  st.lasso = {pg:pi, layer, items, poly, bb:inkItemsBB(items)};
+  /* 圈到笔迹 = 笔迹选区（可拖动/换色/删除）；圈到的区域里没有笔迹
+     = 截图区域（对着练习册圈一道 PDF 上的题，区域内本来就没有我的笔迹）。
+     两种都保留选区，bb 一律用圈的外接框——屏幕上看到的虚线框就是它。 */
+  st.lasso = {pg:pi, layer, items, poly, bb:[x0, y0, x1, y1]};
   inkInvalidate(); inkSyncBar();
 }
 /* 选区命中：0=没碰到，1=在选区里（拖动），2=右下缩放手柄 */
@@ -165,64 +163,64 @@ function inkPaintLasso(ctx, m){
   ctx.restore();
 }
 /* ---- 选区操作 ---- */
-/* 套索截图：把选区从干层（纸 + 墨）上裁下来。
-   复制走 clipboard API（WebView/老浏览器不支持时自动落回保存），
-   保存走 blob 下载（APP 里经下载桥存进系统「下载」）。裁的是选区框
-   （strokes 包围盒 + 一圈留白），不是画的圈本身——和屏幕上看到的虚线框一致。 */
+/* 选区 → 一张完整的图：按选区框对整页做窗口渲染（背景图/底纹 + 全部笔迹）。
+   以前是从干层画布上抠像素，干层只有我的笔迹——对着练习册圈一道 PDF 上的题，
+   抠出来是一张白纸。改用导出引擎的整页渲染 + 取景窗口，纸上有什么就截到什么。 */
+function inkLassoCropCanvas(maxSide){
+  const st = inkPad, L = st && st.lasso;
+  if(!st || !L) return null;
+  const pad = 20;
+  const rx = L.bb[0] - pad, ry = L.bb[1] - pad;
+  const rw = (L.bb[2] - L.bb[0]) + pad*2, rh = (L.bb[3] - L.bb[1]) + pad*2;
+  if(rw < 8 || rh < 8) return null;
+  const k = Math.min(2.5, (maxSide || 1500) / Math.max(rw, rh));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(rw * k); cv.height = Math.round(rh * k);
+  inkPaintPageTo(cv.getContext("2d"), st.pages[L.pg], cv.width, cv.height, true,
+                 [rx, ry, rx + rw, ry + rh]);
+  return cv;
+}
+/* 套索截图：复制到剪贴板（APP 走原生存图剪贴板，网页走 Clipboard API，
+   都不行落回保存 PNG）。 */
 async function inkLassoShot(save){
   const st = inkPad;
-  if(!st || !st.lasso || !st._map){ toast("先圈选一块笔迹"); return; }
-  const bb = st.lasso.bb;
-  if(!bb || bb[2]-bb[0] < 4 || bb[3]-bb[1] < 4){ toast("选区太小了"); return; }
-  const m = st._map, dpr = st.dpr;
-  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
-  const pad = 16;                                     // 页内坐标 → 屏幕坐标（canvas CSS px）
-  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
-  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
-  if(w < 4 || h < 4){ toast("选区太小了"); return; }
-  const z = Math.min(3, 1400 / Math.max(w, h));       // 长边补到 ~1400px，别超采
-  const cv = document.createElement("canvas");
-  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
-  const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
-  cv.toBlob(async blob=>{
-    if(!blob){ toast("截图失败"); return; }
-    if(!save && typeof ClipboardItem !== "undefined" && navigator.clipboard){
+  if(!st || !st.lasso){ toast("先圈选一块区域"); return; }
+  const cv = inkLassoCropCanvas(1400);
+  if(!cv){ toast("选区太小，圈大一点"); return; }
+  const name = `错题截图_${new Date().toISOString().slice(0,10)}`;
+  if(!save){
+    const bridge = window.AndroidBridge;
+    if(bridge && bridge.copyImage){
+      /* 安卓剪贴板不收裸图片字节，交给壳：图片落 MediaStore 拿 content:// URI
+         再进 ClipData，微信/QQ 都能直接粘贴 */
+      try{ bridge.copyImage(name, cv.toDataURL("image/png").split(",")[1]); return; }
+      catch(e){ }
+    }
+    if(typeof ClipboardItem !== "undefined" && navigator.clipboard){
       try{
-        await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
-        toast("已复制，去聊天或笔记里直接粘贴");
-        return;
+        const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
+        if(blob){
+          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+          toast("已复制，去聊天或笔记里直接粘贴");
+          return;
+        }
       }catch(e){ toast("这台设备不让复制图片，改为保存"); }
     }
-    appDownload(blob, `错题截图_${new Date().toISOString().slice(0,10)}.png`, "image/png");
-    toast("截图已保存");
-  }, "image/png");
+  }
+  const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
+  if(!blob){ toast("截图失败"); return; }
+  appDownload(blob, name + ".png", "image/png");
+  toast("截图已保存");
 }
-/* 套索圈住的题 → 直接进错题库（图片题）。
-   场景：笔记里对着导入的练习册写题，不会 / 写错就圈住题目一键入库，
-   复盘卡片会显示这张图，答案解析之后在题库里补。
-   图片压成 JPEG（白底黑字，比 PNG 小得多，同步快）。 */
+
 async function inkLassoToBank(){
   const st = inkPad;
-  if(!st || !st.lasso || !st._map){ toast("先圈选题目区域"); return; }
-  const bb = st.lasso.bb;
-  if(!bb || bb[2]-bb[0] < 20 || bb[3]-bb[1] < 20){ toast("选区太小，圈大一点"); return; }
-  const m = st._map, dpr = st.dpr;
-  const [ox, oy] = inkPageOrigin(st.lasso.pg, m.lay);
-  const pad = 20;
-  const x0 = (ox + bb[0] - pad) * m.k + m.ox, y0 = (oy + bb[1] - pad) * m.k + m.oy;
-  const w = (bb[2]-bb[0] + pad*2) * m.k, h = (bb[3]-bb[1] + pad*2) * m.k;
-  if(w < 8 || h < 8){ toast("选区太小，圈大一点"); return; }
-  const z = Math.min(2.5, 1500 / Math.max(w, h));
-  const cv = document.createElement("canvas");
-  cv.width = Math.round(w*z); cv.height = Math.round(h*z);
-  const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.drawImage(st.dryC, x0*dpr, y0*dpr, w*dpr, h*dpr, 0, 0, cv.width, cv.height);
+  if(!st || !st.lasso){ toast("先圈选题目区域"); return; }
+  const cv = inkLassoCropCanvas(1500);
+  if(!cv){ toast("选区太小，圈大一点"); return; }
   const img = cv.toDataURL("image/jpeg", 0.85);
   if(!img || img.length < 2000){ toast("截图失败，请重试"); return; }
-  /* 科目默认第一个，可以改；图片题的题干留空，卡片会显示「本题为图片」 */
+  /* 科目默认第一个，可以改；图片题的题干留空，卡片会显示题目图片 */
   const subject = (prompt("这道题属于哪个科目？", (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
   if(!subject){ toast("已取消（没填科目）"); return; }
   const q = {
@@ -240,7 +238,7 @@ async function inkLassoToBank(){
 }
 
 function inkLassoDelete(){
-  const st = inkPad, L = st && st.lasso; if(!L) return;
+  const st = inkPad, L = st && st.lasso; if(!L || !L.items.length) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;
   const items = [];
   for(const s of L.items){
@@ -252,14 +250,14 @@ function inkLassoDelete(){
   inkInvalidate(); inkSyncBar(); inkThumbsRefresh();
 }
 function inkLassoColor(ci){
-  const st = inkPad, L = st && st.lasso; if(!L) return;
+  const st = inkPad, L = st && st.lasso; if(!L || !L.items.length) return;
   const items = L.items.map(s=>({s, from:s.c|0, to:ci}));
   for(const s of L.items) s.c = ci;
   inkPush({k:"recolor", pg:L.pg, layer:L.layer, items});
   inkInvalidate(); inkThumbsRefresh();
 }
 function inkLassoDup(){
-  const st = inkPad, L = st && st.lasso; if(!L) return;
+  const st = inkPad, L = st && st.lasso; if(!L || !L.items.length) return;
   const arr = inkArrOf({pg:L.pg, layer:L.layer}); if(!arr) return;
   const D = 26;
   const copies = L.items.map(s=>{
@@ -278,7 +276,7 @@ function inkLassoDup(){
 }
 /* 搬到另一个图层（笔记本里常用：把批注挪到批注层） */
 function inkLassoToLayer(li){
-  const st = inkPad, L = st && st.lasso; if(!L) return;
+  const st = inkPad, L = st && st.lasso; if(!L || !L.items.length) return;
   const pg = st.pages[L.pg];
   if(Array.isArray(pg) || !pg.layers || !pg.layers[li] || li === L.layer) return;
   const from = pg.layers[L.layer].strokes, to = pg.layers[li].strokes;
@@ -293,7 +291,7 @@ function inkLassoToLayer(li){
 }
 /* 搬到另一页（跨页整理笔记） */
 function inkLassoToPage(pi){
-  const st = inkPad, L = st && st.lasso; if(!L || pi === L.pg || !st.pages[pi]) return;
+  const st = inkPad, L = st && st.lasso; if(!L || !L.items.length || pi === L.pg || !st.pages[pi]) return;
   const a = inkArrOf({pg:L.pg, layer:L.layer}), b = inkArrOf({pg:pi, layer:0});
   if(!a || !b) return;
   for(const s of L.items){
