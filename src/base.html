@@ -736,6 +736,15 @@ B. 1
     <div class="muted" id="penInfoLine" hidden style="margin-top:10px;font-size:12px"></div>
   </div>
   <div class="card">
+    <h2>ℹ️ 版本与更新</h2>
+    <div class="muted" id="verInfo" style="margin-bottom:10px">版本信息加载中…</div>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn small" id="btnCheckUpdate">🔄 检查更新</button>
+      <button class="btn ghost small" id="btnReloadApp" title="网页内容有新版本时刷新一下就换新">↻ 刷新页面</button>
+    </div>
+    <div class="muted" id="updateMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>科目</h2>
     <div class="muted" style="margin-bottom:10px">
       直接改名字或删减；<b>改名会同步更新已有错题的科目</b>，删除的科目下必须没有题
@@ -924,6 +933,7 @@ const $ = id => document.getElementById(id);
      · localStorage 键 "cyt_cfg"
      · 云端文件名 questions/books/config.json.gz 和仓库名本身 */
 const APP_NAME = "错了没";
+const APP_BUILD = "__BUILD__";   // 构建时间戳，build.py 注入；设置页的「检查更新」靠它对比线上版本
 /* 版本号：改完代码必须 +1。浏览器对这个 HTML 有缓存，用户（包括我自己）
    在平板上测的经常是旧页面还以为新功能坏了——设置页最底下和 F12 控制台
    都能看到版本，先对版本再报 bug。 */
@@ -3592,26 +3602,68 @@ applyTheme(cfg.theme);
    build.py 每次构建把 APK 版本号写进 apk-version.json，APP 打开时对一下，
    有新版问一句，确认后交给原生（下载带系统通知进度，下完自动弹安装，
    覆盖安装、数据不动）。网页端没有 AndroidBridge，直接跳过。 */
-async function appUpdateCheck(){
+async function appUpdateCheck(force){
   const b = window.AndroidBridge;
-  if(!b || !b.appVer) return;
+  if(!b || !b.appVer) return "";               // 网页端没有壳可查
   try{
     const mine = String(b.appVer()).split("|").map(Number);
     const r = await fetch("apk-version.json?t=" + Date.now(), {cache: "no-store"});
     const v = await r.json();
-    if(!(v.code > mine[0])) return;
-    let skipped = 0;
-    try{ skipped = +localStorage.getItem("cyt_apkNo") || 0; }catch(e){}
-    if(skipped >= v.code) return;                    // 这个版本已经拒过，不再烦
-    if(!confirm(`壳有新版本 v${v.name}（当前 v${mine[1]||mine[0]}），现在下载并安装吗？\n下载完会自动弹出安装，数据不会丢。`)) {
-      try{ localStorage.setItem("cyt_apkNo", v.code); }catch(e){}
-      return;
+    if(!(v.code > mine[0])) return `壳已是最新（v${v.name}）`;
+    if(!force){
+      let skipped = 0;
+      try{ skipped = +localStorage.getItem("cyt_apkNo") || 0; }catch(e){}
+      if(skipped >= v.code) return "";         // 这个版本已经拒过，不再烦
     }
-    const apkUrl = new URL("错了没-平板版.apk", location.href).href;
-    b.updateApk(apkUrl, "错了没-平板版-" + v.name + ".apk");
-    toast("正在后台下载更新，下完会弹出安装");
-  }catch(e){ /* 版本文件拉不到就当没有更新 */ }
+    if(confirm(`壳有新版本 v${v.name}（当前 v${mine[1]||mine[0]}），现在下载并安装吗？
+下载完会自动弹出安装，数据不会丢。`)){
+      const apkUrl = new URL("错了没-平板版.apk", location.href).href;
+      b.updateApk(apkUrl, "错了没-平板版-" + v.name + ".apk");
+      toast("正在后台下载更新，下完会弹出安装");
+      return `开始下载壳 v${v.name}，下载完会弹出安装`;
+    }
+    try{ localStorage.setItem("cyt_apkNo", v.code); }catch(e){}
+    return "";
+  }catch(e){ return ""; }                       // 版本文件拉不到就当没有更新
 }
+/* 设置页「检查更新」：网页版本（对比构建时间戳）+ 壳版本（appUpdateCheck）
+   一起查，结果写进卡片。 */
+async function checkUpdateUI(){
+  const msg = $("updateMsg");
+  if(msg) msg.textContent = "检查中…";
+  const parts = [];
+  try{
+    const r = await fetch(location.href.split("#")[0], {cache: "no-store"});
+    const t = await r.text();
+    const m = t.match(/APP_BUILD\s*=\s*"([^"]+)"/);
+    if(m && m[1] && m[1] !== APP_BUILD)
+      parts.push(`🔄 网页有新版本（${m[1]}，当前 ${APP_BUILD}），点「刷新页面」即可更新`);
+    else if(m && m[1])
+      parts.push(`✅ 网页已是最新（${APP_BUILD}）`);
+    else
+      parts.push(`网页版本 ${APP_BUILD}（线上信息读不到，可能断网）`);
+  }catch(e){
+    parts.push(`网页版本 ${APP_BUILD}（检查失败：${e.message}）`);
+  }
+  const shellMsg = await appUpdateCheck(true);   // 手动检查：拒过的版本也再问一次
+  if(shellMsg) parts.push(shellMsg);
+  if(msg) msg.textContent = parts.join("；");
+}
+function fillVerInfo(){
+  const el = $("verInfo");
+  if(!el) return;
+  const b = window.AndroidBridge;
+  let t = `网页版本：${APP_BUILD}`;
+  if(b && b.appVer){
+    try{ const v = String(b.appVer()).split("|"); t += `｜APP：v${v[1] || v[0]}`; }catch(e){}
+  }else{
+    t += "｜浏览器版";
+  }
+  el.textContent = t;
+}
+$("btnCheckUpdate").addEventListener("click", ()=>{ fillVerInfo(); checkUpdateUI(); });
+$("btnReloadApp").addEventListener("click", ()=> location.reload());
+fillVerInfo();
 appUpdateCheck();
 /* 笔震动诊断（仅 APP）：告诉我们这台设备的笔有没有暴露震动马达 */
 (function(){
@@ -4353,6 +4405,23 @@ async function ungzipB64(b64){
 }
 /* 读一个文件，返回 {sha, data}。sha 是 PUT 时必须回传的版本号，
    不带 sha 去写已存在的文件会被 GitHub 拒掉。 */
+/* 列仓库目录（背景图按文件存放用），返回 [{name, sha}]，目录不存在给 [] */
+async function ghList(path){
+  const j = await ghFetch(`/repos/${cfg.repo}/contents/${path}`);
+  if(!j || !Array.isArray(j)) return [];
+  return j.filter(f=>f.type === "file").map(f=>({name:f.name, sha:f.sha}));
+}
+/* 删云端文件（孤儿背景图清理）。失败不当错误：下轮还会再试。 */
+async function ghDelete(name, sha){
+  try{
+    await ghFetch(`/repos/${cfg.repo}/contents/${name}`, {
+      method:"DELETE",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:"cleanup "+name, sha})
+    });
+    return true;
+  }catch(e){ return false; }
+}
 async function ghRead(name){
   const j = await ghFetch(`/repos/${cfg.repo}/contents/${name}`);
   if(!j) return {sha:null, data:null};
@@ -4522,6 +4591,40 @@ async function doSync(quiet){
       await ghWrite(F_B, rb.sha, {version:2, syncedAt:Date.now(), books:cloudB}, "sync books");
     if(JSON.stringify(remoteN) !== JSON.stringify(keepN))
       await ghWrite(F_N, rn.sha, {version:1, syncedAt:Date.now(), notebooks:keepN}, "sync notebooks");
+
+    /* ---- 笔记背景图（练习册 PDF 页 / 图片页）----
+       一张图一个文件放 nbimg/ 目录增量传：塞进 notebooks.json.gz 会把整份
+       同步撑到几十 MB。上传：本机有、云端没有、且被保留的笔记引用；
+       下载：云端有、本机没有、被引用；清理：云端有、没有笔记引用（孤儿）。
+       单轮上传封顶 60 张，一本大练习册分几轮传完，不堵同步。 */
+    const needImgs = new Set();
+    for(const n of keepN) for(const pg of (n.pages||[]))
+      if(!Array.isArray(pg) && pg.bgType === "image" && pg.bgData) needImgs.add(pg.bgData);
+    if(needImgs.size){
+      const remoteImgs = await ghList("nbimg");
+      const remoteIds = new Map(remoteImgs.map(f=>[f.name, f.sha]));
+      const localImgs = await new Promise((res, rej)=>{
+        const t = db.transaction("nb_files","readonly").objectStore("nb_files").getAll();
+        t.onsuccess = ()=> res(t.result || []); t.onerror = ()=> rej(t.error);
+      });
+      const localIds = new Set(localImgs.map(r=>r.id));
+      let upCount = 0;
+      for(const id of needImgs){
+        if(remoteIds.has(id) || !localIds.has(id) || upCount >= 60) continue;
+        const rec = localImgs.find(r=>r.id===id);
+        await ghWrite(`nbimg/${id}`, null, {v:1, id, data:rec.data}, "note bg "+id);
+        upCount++;
+      }
+      let dlCount = 0;
+      for(const id of needImgs){
+        if(localIds.has(id) || !remoteIds.has(id) || dlCount >= 200) continue;
+        const r = await ghRead(`nbimg/${id}`);
+        if(r && r.data && r.data.data){ await dbNbFilePut(r.data.id, r.data.data); dlCount++; }
+      }
+      for(const [id, sha] of remoteIds){
+        if(!needImgs.has(id)) await ghDelete(`nbimg/${id}`, sha);   // 笔记已删的孤儿图
+      }
+    }
 
     cfg.lastSyncAt = Date.now(); saveCfg();
     /* 本轮跑的过程中如果又有新改动（syncDirtyAt 比开始时间晚），

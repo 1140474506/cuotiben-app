@@ -145,7 +145,12 @@ function inkInkBB(pg){
 /* 背景图按需从 nb_files 里取，取到后重画一次。失败也要记下来，
    否则每帧都会重新发起一次 IndexedDB 请求。 */
 function inkBgImage(pg){
-  if(pg._img !== undefined) return pg._img;
+  if(pg._img !== undefined){
+    /* 取不到可能是图片还没从云端同步下来：30 秒后允许重试，而不是永远白纸 */
+    if(pg._img !== null || !pg._imgMiss || performance.now() - pg._imgMiss < 30000)
+      return pg._img;
+    pg._img = undefined; pg._imgMiss = 0;
+  }
   pg._img = null;
   const id = pg.bgData;
   if(!id || typeof db === "undefined" || !db) return null;
@@ -153,7 +158,7 @@ function inkBgImage(pg){
     const rq = db.transaction("nb_files","readonly").objectStore("nb_files").get(id);
     rq.onsuccess = e=>{
       const rec = e.target.result;
-      if(!rec || !rec.data) return;
+      if(!rec || !rec.data){ pg._imgMiss = performance.now(); return; }
       const img = new Image();
       img.onload = ()=>{ pg._img = img; inkInvalidate(); inkThumbsRefresh(); };
       img.src = rec.data;

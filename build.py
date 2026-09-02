@@ -48,6 +48,11 @@ dupes = sorted(set(n for n in defs if defs.count(n) > 1 and n.startswith(("ink",
 if dupes:
     sys.exit("FATAL: duplicate definitions after assembly: %s" % dupes)
 
+import datetime
+out = out.replace("__BUILD__", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+if "__BUILD__" in out:
+    sys.exit("FATAL: __BUILD__ marker not replaced")
+
 dst = os.path.join(ROOT, "index.html")
 with io.open(dst, "w", encoding="utf-8", newline="\n") as f:
     f.write(out)

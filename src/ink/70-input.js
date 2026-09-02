@@ -34,6 +34,15 @@ function inkHitPage(st, clientX, clientY, allowGrow){
     return inkHitPage(st, clientX, clientY, false);
   }
   const [ox, oy] = inkPageOrigin(pi, st._lay || lay);
+  /* 纸外不落笔：有边界的纸（A4/PDF/图片页）水平方向超出纸面就不写，
+    否则笔迹悬在纸旁边的空白里、橡皮还不好找。垂直方向：页顶以上不写（原有
+    规则），页底以下由上面的自动加页接手。无限画布页没有"纸外"。 */
+  const pgT = st.pages[pi];
+  if(!Array.isArray(pgT) && !pgT.infinite){
+    const w2 = inkPageW(pgT), h2 = inkPageH(pgT);
+    const px = cx - ox, py = cy - oy;
+    if(px < -16 || px > w2 + 16 || py < -16 || py > h2 + INK_GAP/2) return null;
+  }
   return [pi, cx - ox, cy - oy];
 }
 /* 采样点的宽度因子：压感 × 速度 × 倾角 */
@@ -125,8 +134,9 @@ function inkEraseContent(cx, cy, rad, batch){
   for(let i=0; i<st.pages.length; i++){
     const pg = st.pages[i];
     const [ox, oy] = inkPageOrigin(i, lay);
-    const w = inkPageW(pg), h = inkPageH(pg);
-    if(cx+rad < ox || cx-rad > ox+w || cy+rad < oy || cy-rad > oy+h) continue;
+    /* 不能按页矩形预裁：写到纸外的笔迹（历史数据、页缝里的）包围盒在矩形
+       之外，整页被跳过就成了"橡皮擦不掉"。页内的粗筛交给 inkEraseAt 里
+       每条笔画的包围盒判定，它本来就是 O(笔画) 的。 */
     if(inkEraseAt(i, cx-ox, cy-oy, rad, batch)) hit = true;
   }
   return hit;
