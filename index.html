@@ -458,6 +458,10 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
+/* 套索截图预览图 */
+.ink-shot{width:100%; display:block; border:2px solid var(--line); border-radius:10px;
+  background:#fff; box-shadow:3px 3px 0 var(--line-soft)}
+
 /* 笔记本文件夹条：文件夹从笔记数据派生，没有分类时整条隐藏 */
 .folder-chip{display:inline-flex; align-items:center; gap:5px; padding:6px 13px;
   border:2px solid var(--line); border-radius:99px; background:var(--card);
@@ -3659,88 +3663,139 @@ function inkLassoCropCanvas(maxSide){
                  [rx, ry, rx + rw, ry + rh]);
   return cv;
 }
-/* 套索截图：复制到剪贴板（APP 走原生存图剪贴板，网页走 Clipboard API，
-   都不行落回保存 PNG）。 */
-async function inkLassoShot(save){
+/* 选区 → 画布。两条路：
+   · 平板 APP：整屏视图截屏（captureView 桥）——练习纸的印刷内容在 iframe 里，
+     canvas 永远画不到它，只有视图层"所见即所得"能截到（之前截出白纸的根因）。
+     截之前先把选区虚线框藏掉，截完恢复。
+   · 网页端：按选区窗口整页渲染（背景图/底纹 + 全部笔迹）。 */
+async function inkLassoCapture(maxSide){
+  const st = inkPad, L = st && st.lasso;
+  if(!st || !L || !st._map) return null;
+  const bridge = window.AndroidBridge;
+  if(bridge && bridge.captureView){
+    const keep = st.lasso;
+    st.lasso = null; st.lassoPath = null; inkInvalidate();
+    await new Promise(r=> requestAnimationFrame(()=> requestAnimationFrame(r)));
+    let url = null;
+    try{ url = bridge.captureView(); }catch(e){ }
+    st.lasso = keep; inkInvalidate(); inkSyncBar();
+    if(!url) return inkLassoCropCanvas(maxSide);
+    const img = await new Promise(res=>{
+      const i = new Image();
+      i.onload = ()=> res(i); i.onerror = ()=> res(null);
+      i.src = url;
+    });
+    if(!img) return inkLassoCropCanvas(maxSide);
+    const m = st._map;
+    const rct = st.wrap.getBoundingClientRect();
+    const [ox, oy] = inkPageOrigin(L.pg, m.lay);
+    const pad = 16;
+    const x0 = (ox + L.bb[0] - pad) * m.k + m.ox, y0 = (oy + L.bb[1] - pad) * m.k + m.oy;
+    const w = (L.bb[2] - L.bb[0] + pad*2) * m.k, h = (L.bb[3] - L.bb[1] + pad*2) * m.k;
+    if(w < 4 || h < 4) return null;
+    const scl = img.width / window.innerWidth;      // 位图像素 / CSS 像素
+    const z = Math.min(2.5, maxSide / Math.max(w, h));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(w * z); cv.height = Math.round(h * z);
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, (rct.left + x0) * scl, (rct.top + y0) * scl, w * scl, h * scl,
+                  0, 0, cv.width, cv.height);
+    return cv;
+  }
+  return inkLassoCropCanvas(maxSide);
+}
+/* 截图预览：当场看到截到了什么，再决定复制 / 保存 / AI 入题库。
+   看不见就没法核对——截出来是白的能立刻发现，而不是存完才发现。 */
+async function inkLassoPreview(){
   const st = inkPad;
   if(!st || !st.lasso){ toast("先圈选一块区域"); return; }
-  const cv = inkLassoCropCanvas(1400);
-  if(!cv){ toast("选区太小，圈大一点"); return; }
-  const name = `错题截图_${new Date().toISOString().slice(0,10)}`;
-  if(!save){
-    const bridge = window.AndroidBridge;
-    if(bridge && bridge.copyImage){
-      /* 安卓剪贴板不收裸图片字节，交给壳：图片落 MediaStore 拿 content:// URI
-         再进 ClipData，微信/QQ 都能直接粘贴 */
-      try{ bridge.copyImage(name, cv.toDataURL("image/png").split(",")[1]); return; }
-      catch(e){ }
+  toast("📸 截图中…");
+  const cv = await inkLassoCapture(1400);
+  if(!cv || cv.width < 8){ toast("截图失败，圈大一点试试"); return; }
+  const mask = document.createElement("div");
+  mask.className = "nb-new-mask";
+  mask.innerHTML = `
+    <div class="card nb-new" style="width:min(430px,92vw)">
+      <h3 style="margin:0 0 10px">截好了，长这样 👇</h3>
+      <img class="ink-shot" src="${cv.toDataURL("image/jpeg", 0.85)}" alt="截图预览">
+      <div class="row" style="margin-top:12px;justify-content:center;flex-wrap:wrap">
+        <button class="btn small" data-act="bank">📤 AI 入题库</button>
+        <button class="btn ghost small" data-act="copy">📋 复制</button>
+        <button class="btn ghost small" data-act="save">💾 保存</button>
+        <button class="btn ghost small" data-act="close">✕ 关闭</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.addEventListener("click", async e=>{
+    const b = e.target.closest("button[data-act]");
+    if(!b) return;
+    const act = b.dataset.act;
+    if(act !== "close") b.disabled = true;
+    if(act === "close"){ mask.remove(); return; }
+    if(act === "save"){
+      const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
+      if(blob){ appDownload(blob, `错题截图_${new Date().toISOString().slice(0,10)}.png`, "image/png"); }
+      mask.remove(); return;
     }
-    if(typeof ClipboardItem !== "undefined" && navigator.clipboard){
-      try{
-        const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
-        if(blob){
+    if(act === "copy"){
+      const bridge = window.AndroidBridge;
+      if(bridge && bridge.copyImage){
+        try{ bridge.copyImage("错题截图_" + Date.now().toString(36),
+              cv.toDataURL("image/png").split(",")[1]); mask.remove(); return; }catch(e){}
+      }
+      if(typeof ClipboardItem !== "undefined" && navigator.clipboard){
+        try{
+          const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
           await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
           toast("已复制，去聊天或笔记里直接粘贴");
-          return;
-        }
-      }catch(e){ toast("这台设备不让复制图片，改为保存"); }
+          mask.remove(); return;
+        }catch(e){ }
+      }
+      const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
+      if(blob) appDownload(blob, `错题截图_${new Date().toISOString().slice(0,10)}.png`, "image/png");
+      toast("这台设备不支持复制图片，已改为保存");
+      mask.remove(); return;
     }
-  }
-  const blob = await new Promise(r=> cv.toBlob(r, "image/png"));
-  if(!blob){ toast("截图失败"); return; }
-  appDownload(blob, name + ".png", "image/png");
-  toast("截图已保存");
+    if(act === "bank"){
+      mask.remove();
+      inkLassoToBank(cv);
+    }
+  });
 }
-
-async function inkLassoToBank(){
+async function inkLassoToBank(cv){
   const st = inkPad;
   if(!st || !st.lasso){ toast("先圈选题目区域"); return; }
-  const cv = inkLassoCropCanvas(1000);
-  if(!cv){ toast("选区太小，圈大一点"); return; }
-  /* 截图压到 1000px / JPEG 0.7：一道题约 50-90KB。图片跟着题目进云端
-     （questions.json.gz），500 张截图约 30-40MB——GitHub 免费仓库没有容量
-     上限、单文件上限 100MB，安全；核对完想清理，题库编辑里删掉图即可。 */
+  if(!cv){
+    cv = await inkLassoCapture(1000);
+    if(!cv){ toast("截图失败，圈大一点试试"); return; }
+  }
+  /* 截图压到 1000px / JPEG 0.7（约 50-90KB）。图片跟着题目进云端
+     （questions.json.gz），500 张约 30-40MB——GitHub 免费仓库无容量上限、
+     单文件限 100MB，安全；核对完想清理，录入表单里删掉图即可。 */
   const img = cv.toDataURL("image/jpeg", 0.7);
-  if(!img || img.length < 2000){ toast("截图失败，请重试"); return; }
-  const noteFolder = st.note ? (st.note.folder || "") : "";
-  /* 配了 AI：和批量导入同一条识别链（recognizeImages），题干/选项/答案/
-     解析结构化入库，截图留在 q.images 里随时核对。没配或失败：退回纯图片题。 */
+  /* 关掉笔记全屏（顺手落库），切到录入页——和手动录入完全同一条链：
+     AI 识别结果填进表单，你看得到、改得了，确认无误再点「保存错题」。 */
+  if(st.note) noteClose();
+  else inkClose();
+  switchTab("add");
+  pendingImgs = [img];
+  renderImgs();
   if(cfg.base && cfg.key){
     toast("🤖 AI 识别中…");
     try{
       const j = await recognizeImages([img]);
-      if(j && j.question){
-        await dbPut({
-          id: "q_" + Date.now(),
-          subject: subjList().includes(j.subject) ? j.subject : (noteFolder || subjList()[0] || "未分类"),
-          chapter: j.chapter || "", type: j.type || "题",
-          question: j.question || "",
-          options: Array.isArray(j.options) ? j.options.filter(o=>o && o.k) : [],
-          correctAns: j.correctAnswer || "", analysis: j.analysis || "",
-          images: [img],
-          reason: 0, difficulty: (j.difficulty >= 1 && j.difficulty <= 5) ? j.difficulty : 3,
-          createdAt: Date.now(), updatedAt: Date.now(),
-          reviews: [], failCount: 0, rightCount: 0
-        });
-        refreshBadge();
-        toast("AI 已识别入库，今天就可以复盘");
-        return;
-      }
-    }catch(e){ toast("AI 识别失败，改为只存图片题"); }
+      if(j) fillForm(j);
+      /* 圈题入库的场景是「刚做错」，默认今天就复盘（表单里还能改） */
+      const today = document.getElementById("fToday");
+      if(today) today.checked = true;
+      toast("已识别并填好表单，核对后点「保存错题」");
+      return;
+    }catch(e){ toast("AI 识别失败，截图已放进表单，手动补一下"); }
+    const today = document.getElementById("fToday");
+    if(today) today.checked = true;
+    toast("截图已放进录入表单（没配 AI，手动填一下题目）");
   }
-  const subject = (prompt("这道题属于哪个科目？", noteFolder || (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
-  if(!subject){ toast("已取消（没填科目）"); return; }
-  await dbPut({
-    id: "q_" + Date.now(),
-    subject, type: "图片题",
-    question: "", options: [], correctAns: "", analysis: "",
-    images: [img],
-    reason: 0, difficulty: 3,
-    createdAt: Date.now(), updatedAt: Date.now(),
-    reviews: [], failCount: 0, rightCount: 0
-  });
-  refreshBadge();
-  toast("已存进错题库，今天就可以复盘它");
 }
 
 function inkLassoDelete(){
@@ -4433,9 +4488,7 @@ function inkToolbarHTML(){
       ${st.lasso.items.length ? INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("") : ""}
       ${st.lasso.items.length ? `<button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>` : ""}
-      <button class="btn ghost small" data-act="lbank" title="把圈住的题截下来存进错题库（自动生成图片题，今天就能复盘）">📤 入题库</button>
-      <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
-      <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
+      <button class="btn ghost small" data-act="lshot" title="截下圈住的区域，当场预览，再决定 复制 / 保存 / AI 入题库">📸 截图</button>
       ${st.lasso.items.length && layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
       <button class="btn ghost small" data-act="lnone" title="取消选择（Esc）">✕</button>
@@ -4537,9 +4590,7 @@ function inkBarAction(b){
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "haptic": st.haptic = st.haptic === false; inkSavePref(); if(st.haptic) inkHaptic(18); break;
       case "ldel": return inkLassoDelete();
-      case "lbank": return inkLassoToBank();
-      case "lcopy": return inkLassoShot(false);
-      case "lsave": return inkLassoShot(true);
+      case "lshot": return inkLassoPreview();
       case "ldup": return inkLassoDup();
       case "lnone": st.lasso = null; inkInvalidate(); break;
       case "thumbs": st.thumbsOpen = !st.thumbsOpen; break;

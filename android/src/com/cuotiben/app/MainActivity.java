@@ -17,6 +17,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.StrictMode;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import java.util.concurrent.CountDownLatch;
+import java.io.ByteArrayOutputStream;
+import java.util.concurrent.TimeUnit;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
 import android.os.Looper;
@@ -398,6 +403,34 @@ public class MainActivity extends Activity {
                             "下载失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
                 }
             });
+        }
+
+        /** 截取当前 WebView 画面（整屏 PNG 的 dataURL）。练习纸的印刷内容在
+            iframe 里、canvas 画不到，网页端套索截图要靠这层"所见即所得"截屏。
+            桥方法只支持同步返回 String：post 到 UI 线程画完再倒计时放行。 */
+        @JavascriptInterface
+        public String captureView() {
+            final String[] out = {null};
+            final CountDownLatch latch = new CountDownLatch(1);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    float d = getResources().getDisplayMetrics().density;
+                    Bitmap bmp = Bitmap.createBitmap(
+                            (int) (web.getWidth() * d), (int) (web.getHeight() * d),
+                            Bitmap.Config.ARGB_8888);
+                    Canvas c = new Canvas(bmp);
+                    c.scale(d, d);
+                    web.draw(c);
+                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    bmp.compress(Bitmap.CompressFormat.PNG, 100, bos);
+                    bmp.recycle();
+                    out[0] = "data:image/png;base64," + android.util.Base64.encodeToString(
+                            bos.toByteArray(), android.util.Base64.NO_WRAP);
+                } catch (Throwable ignored) { }
+                latch.countDown();
+            });
+            try { latch.await(3, TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
+            return out[0];
         }
 
         /** 图片复制进系统剪贴板。Android 剪贴板不收裸图片字节，标准做法：

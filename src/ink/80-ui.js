@@ -41,9 +41,7 @@ function inkToolbarHTML(){
       ${st.lasso.items.length ? INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("") : ""}
       ${st.lasso.items.length ? `<button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
       <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>` : ""}
-      <button class="btn ghost small" data-act="lbank" title="把圈住的题截下来存进错题库（自动生成图片题，今天就能复盘）">📤 入题库</button>
-      <button class="btn ghost small" data-act="lcopy" title="把选区裁成图片复制到剪贴板，可直接粘贴到聊天/笔记">📋 复制图</button>
-      <button class="btn ghost small" data-act="lsave" title="选区保存为 PNG 图片">💾 存图</button>
+      <button class="btn ghost small" data-act="lshot" title="截下圈住的区域，当场预览，再决定 复制 / 保存 / AI 入题库">📸 截图</button>
       ${st.lasso.items.length && layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
       <button class="btn ghost small" data-act="lnone" title="取消选择（Esc）">✕</button>
@@ -145,9 +143,7 @@ function inkBarAction(b){
       case "snap": st.snap = !st.snap; inkSavePref(); break;
       case "haptic": st.haptic = st.haptic === false; inkSavePref(); if(st.haptic) inkHaptic(18); break;
       case "ldel": return inkLassoDelete();
-      case "lbank": return inkLassoToBank();
-      case "lcopy": return inkLassoShot(false);
-      case "lsave": return inkLassoShot(true);
+      case "lshot": return inkLassoPreview();
       case "ldup": return inkLassoDup();
       case "lnone": st.lasso = null; inkInvalidate(); break;
       case "thumbs": st.thumbsOpen = !st.thumbsOpen; break;
