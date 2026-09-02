@@ -48,12 +48,18 @@ async function noteImportPDFFromFile(file){
       for(let i=1; i<=pdf.numPages; i++){
         toast(`正在导入 ${i}/${pdf.numPages} 页…`);
         const page = await pdf.getPage(i);
-        const vp = page.getViewport({scale: 1.6});
+        /* 渲染分辨率按目标长边 3600px 算（A4 约 4.3 倍，接近打印精度）：
+           放大书写、高分屏、导出都清晰。页面图片只存本机（nb_files 不进
+           云同步），大分辨率不占仓库体积；上限 5 倍防止把小页面硬放大成噪点，
+           下限 1.6 保证极小页面也有基本清晰度。 */
+        const v1 = page.getViewport({scale: 1});
+        const scale = Math.max(1.6, Math.min(5, 3600 / Math.max(v1.width, v1.height)));
+        const vp = page.getViewport({scale});
         const cv = document.createElement("canvas");
         cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
         await page.render({canvasContext: cv.getContext("2d"), viewport: vp}).promise;
         const fileId = "file_" + Date.now() + "_" + i;
-        await dbNbFilePut(fileId, cv.toDataURL("image/jpeg", 0.82));
+        await dbNbFilePut(fileId, cv.toDataURL("image/jpeg", 0.86));
         n.pages.push({
           id: "pg_" + i,
           bgType: "image", bgData: fileId,
@@ -69,8 +75,7 @@ async function noteImportPDFFromFile(file){
       console.error(e);
       toast("导入失败：" + (e.message || e));
     }
-  };
-  input.click();
+  }
 }
 /* 导出 PDF：按每页真实的纸面尺寸出页（旧版把所有页硬塞进 1000×500，
    笔记本的 A4 竖版页导出来全被压扁）。缩放 2 倍抗糊，单页像素封顶。 */
