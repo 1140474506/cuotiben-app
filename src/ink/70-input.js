@@ -114,8 +114,11 @@ function inkCommitStroke(){
   arr.push(s);
   inkPush({k:"add", pg:pi, layer, s, at:arr.length-1});
   st.strokeCount = (st.strokeCount|0) + 1;
-  inkRender();          // 同步画进 dry（不排 rAF，免得空一帧）
-  inkWetClear();
+  /* 落稿：以前这里同步跑一次整卷重画（inkRender），一页 PDF 背景图就是
+     几百万像素的缩放，抬笔那一下明显顿一下。改成排一帧：wet 层先留着显示
+     （所以不会闪空），dry 画完后在 inkRender 末尾统一清掉 wet。 */
+  st._wetPending = true;
+  inkInvalidate();
   inkThumbsRefresh();
   if(st.undo.length === 1) inkSyncBar();     // 第一笔之后撤销键该亮起来
 }
@@ -308,6 +311,7 @@ function inkWireWrap(wrap){
     const v = inkSampleV(st, e, h[1], h[2], e.timeStamp || performance.now());
     st._curPgIdx = h[0];
     st._curT0 = performance.now();
+    if(st._wetPending){ inkWetClear(); st._wetPending = false; }   // 极快连写：上一笔的 wet 还没被 rAF 清掉
     st.cur = inkNewStroke(st, v);
     st.cur.p.push(h[1], h[2], v);
     st._penStart = [h[1], h[2]];
@@ -404,7 +408,9 @@ function inkWireWrap(wrap){
     /* 预测点：只画一小截，抬笔/下一帧覆盖。给的是原始屏幕坐标，不进数据。 */
     if(!line && st.predict && e.getPredictedEvents){
       const pe = e.getPredictedEvents();
-      inkPredClear();
+      /* 只在「有预测点」或「上次画过」时清：全画布 clearRect 在 120Hz 笔 +
+         retina 画布上是每秒几亿像素的无用功，这是手写延迟的主要来源之一。 */
+      if((pe && pe.length) || st._predBB) inkPredClear();
       if(pe && pe.length){
         const p = st.cur.p, n = (p.length/3)|0;
         const tail = [p[(n-1)*3], p[(n-1)*3+1], p[(n-1)*3+2]];
@@ -420,6 +426,20 @@ function inkWireWrap(wrap){
         inkRibbon(pa, tail, st.cur.w, 0, (tail.length/3)|0);
         ctx.fill(pa);
         ctx.globalAlpha = 1;
+        /* 记下这一小截的设备像素包围盒，下次只清这块 */
+        let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+        for(let i = 0; i < tail.length; i += 3){
+          if(tail[i] < bx0) bx0 = tail[i];
+          if(tail[i] > bx1) bx1 = tail[i];
+          if(tail[i+1] < by0) by0 = tail[i+1];
+          if(tail[i+1] > by1) by1 = tail[i+1];
+        }
+        const dp = st.dpr, pad = (st.cur.w * 2 + 8) * m.k * dp;
+        const dx = px2 => ((px2 + ox) * m.k + m.ox) * dp;
+        const dy = py2 => ((py2 + oy) * m.k + m.oy) * dp;
+        st._predBB = [Math.max(0, dx(bx0) - pad), Math.max(0, dy(by0) - pad),
+                      Math.min(st.predC.width, dx(bx1) + pad),
+                      Math.min(st.predC.height, dy(by1) + pad)];
       }
     }
   };

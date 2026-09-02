@@ -69,6 +69,12 @@ function inkRender(){
   if(pg !== st.page){ st.page = pg; inkPageLabel(); inkThumbSelect(); }
   /* html 背景页：iframe 跟着同一套变换走，笔迹才对得上印刷内容 */
   if(st.frame) inkSyncFrame(m, lay);
+  /* 落稿的最后一步：dry 已经画好，这时才擦掉 wet/pred，中间不会空一帧 */
+  if(st._wetPending && !st.cur){
+    st._wetPending = false;
+    inkWetClear();
+    inkPredClear();
+  }
 }
 /* 正在写的那一笔画在 wet 层。只画新增的那一小段：把 Path2D 缓存丢掉重建整条
    在长笔画上是 O(n²)，改成「从上次画到的点接着往下画」，每次都是常数工作量。
@@ -108,7 +114,10 @@ function inkPredClear(){
   const st = inkPad; if(!st || !st.predC) return;
   const x = st.predX;
   x.setTransform(1,0,0,1,0,0);
-  x.clearRect(0, 0, st.predC.width, st.predC.height);
+  const d = st._predBB;    // 只清上次画过的那一小块（见 70-input 的预测分支）
+  if(d) x.clearRect(d[0], d[1], d[2]-d[0], d[3]-d[1]);
+  else x.clearRect(0, 0, st.predC.width, st.predC.height);
+  st._predBB = null;
 }
 /* html 背景页的 iframe：跟着 view 一起缩放平移。
    iframe 里是一张固定 INK_PAPER_W 宽的纸，用 transform 贴到内容坐标上。 */
@@ -162,7 +171,7 @@ function inkPaintPageTo(ctx, pgData, outW, outH, opaque, win){
   ctx.scale(k, k);
   ctx.translate(-bx, -by);
   const frame = [bx, by, bx+bw, by+bh];
-  inkPaintBg(ctx, pgData, w, h, frame);
+  inkPaintBg(ctx, pgData, w, h, frame, true);   // 导出/缩略图用原图，不用降采样副本
   inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), frame);
   ctx.restore();
 }

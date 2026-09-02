@@ -16,8 +16,19 @@
   background:#fff; margin-top:6px}
 
 /* 工具栏：主排 + 设置抽屉，内联和全屏共用 */
-.inkbar{display:flex; gap:6px; align-items:center; margin-top:10px; flex-wrap:wrap}
+.inkbar{display:flex; gap:7px; align-items:center; margin-top:10px; flex-wrap:wrap}
 .inkbar .on{background:var(--blue-weak); color:var(--blue); border-color:var(--blue)}
+/* 工具按钮 = 图标在上、中文在下（光看图标认不出是什么） */
+.ink-tool{display:inline-flex; flex-direction:column; align-items:center; gap:1px;
+  padding:5px 11px 4px; line-height:1.15}
+.ink-tool .ic-svg{width:20px; height:20px}
+.ink-tool em{font-style:normal; font-size:11px; font-weight:bold; letter-spacing:.02em}
+.inkbar .btn.small em{font-style:normal; font-size:11.5px; font-weight:bold; margin-left:4px}
+@media (max-width:700px){
+  .ink-tool{padding:5px 8px 4px}
+  .ink-tool em{font-size:10px}
+  .inkbar .btn.small em{display:none}   /* 窄屏保留工具标注，其余靠图标 */
+}
 .inkbar .ink-seg{width:2px; height:20px; background:var(--line); flex:none; border-radius:2px}
 .inkbar .ink-name{font-weight:bold; font-size:13px; max-width:34vw; overflow:hidden;
   white-space:nowrap; text-overflow:ellipsis}
@@ -47,16 +58,17 @@
 /* 全屏容器：顶栏 + 纸面 + 底部工具栏，纸面吃掉剩下的全部高度 */
 .inkfs{position:fixed; inset:0; z-index:150; background:var(--bg);
   display:flex; flex-direction:column; touch-action:none; overscroll-behavior:none}
-.inkfs .inkfs-top{display:flex; gap:10px; align-items:center; padding:8px 12px; background:#fff;
-  border-bottom:2px solid var(--line); flex:none; z-index:3}
+.inkfs .inkfs-top{display:flex; gap:9px; align-items:center; padding:9px 13px; background:#fff;
+  border-bottom:2.5px solid var(--text); flex:none; z-index:3}
+.inkfs .inkfs-top .ink-name{font-size:14.5px}
 .inkfs .inkfs-q{max-height:32%; overflow:auto; padding:12px 16px; background:#fff;
   border-bottom:2px solid var(--line); font-size:14.5px; line-height:1.7; touch-action:pan-y}
 .inkfs .inkfs-body{flex:1 1 0; min-height:0; position:relative; margin:8px; overflow:hidden}
 /* 全屏纸面必须撑满 body——没有这条，wrap 高度塌成 0，画布 0×0，
    inkResizeCanvases 直接放弃，_map 永远是 null，笔记里一笔都写不进去 */
 .inkfs .inkfs-body .inkwrap{height:100%}
-.inkfs .inkbar{flex:none; margin:0; padding:8px 12px; background:#fff;
-  border-top:2px solid var(--line); position:relative; z-index:3}
+.inkfs .inkbar{flex:none; margin:0; padding:9px 13px; background:#fff;
+  border-top:2.5px solid var(--text); position:relative; z-index:3}
 .inkfs .inkfs-scroll{flex:1 1 0; min-height:0; overflow:auto; -webkit-overflow-scrolling:touch}
 
 /* 橡皮光标圈 / 长按进度圈：body 下的两个 fixed div，只改 left/top/width，
@@ -71,9 +83,9 @@
 .ink-holdring.grow{width:52px; height:52px; opacity:.25}
 
 /* 图层面板 / 页面缩略图抽屉 */
-.ink-panel{position:absolute; z-index:20; width:230px; max-height:min(62vh,430px); overflow:auto;
-  background:var(--card); border:2px solid var(--text); border-radius:10px;
-  box-shadow:var(--shadow-modal); padding:10px}
+.ink-panel{position:absolute; z-index:20; width:236px; max-height:min(62vh,430px); overflow:auto;
+  background:var(--card); border:2.5px solid var(--text); border-radius:var(--radius);
+  box-shadow:5px 5px 0 var(--line-soft); padding:12px}
 .ink-panel[hidden]{display:none}
 .ink-panel .ptitle{font-weight:bold; font-size:13px; margin-bottom:8px}
 .ink-row{display:flex; align-items:center; gap:6px; padding:5px 6px; border-radius:6px;
@@ -90,8 +102,8 @@
 /* 新建笔记弹窗：名称 + 文件夹点选 + 纸张样式 */
 .nb-flist{max-height:34vh; overflow:auto; display:flex; flex-direction:column; gap:5px}
 .nb-frow{display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:9px 12px; border:2px solid var(--line); border-radius:9px; background:var(--bg);
-  cursor:pointer; font:inherit; font-size:13.5px; text-align:left}
+  padding:9px 13px; border:2px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--bg); cursor:pointer; font:inherit; font-size:13.5px; text-align:left}
 .nb-frow .tick{color:var(--muted); font-size:11px}
 .nb-frow.on{border-color:var(--blue); background:var(--blue-weak)}
 .nb-frow.on .tick{color:var(--blue)}
@@ -106,23 +118,28 @@
 .nb-new-title:focus{outline:none; border-color:var(--blue)}
 .nb-style-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .nb-style{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  padding:12px; border:2px solid var(--line); border-radius:10px; background:var(--card);
-  cursor:pointer; text-align:left; font:inherit}
+  padding:13px; border:2px solid var(--text); border-radius:var(--radius);
+  background:var(--card); cursor:pointer; text-align:left; font:inherit;
+  box-shadow:3px 3px 0 var(--line-soft)}
+.nb-style:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line-soft)}
 .nb-style .ic{font-size:22px}
 .nb-style b{font-size:14px}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
 /* SVG 图标（icon()）：默认跟文字等大，按钮里略大一点；颜色 currentColor */
-.ic-svg{width:1.05em; height:1.05em; vertical-align:-0.16em; flex:none; display:inline-block}
-button .ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em}
-.ic-svg.lg{width:22px; height:22px}
+.ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em; flex:none; display:inline-block;
+  stroke-width:2.1}
+button .ic-svg{width:1.2em; height:1.2em}
+.ic-svg.lg{width:24px; height:24px; stroke-width:1.95}
 
 /* 「打开方式」目的地选择卡片 */
 .nb-dest-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .nb-dest{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  padding:13px 12px; border:2px solid var(--line); border-radius:12px; background:var(--card);
-  cursor:pointer; font:inherit; text-align:left}
+  padding:14px 13px; border:2px solid var(--text); border-radius:var(--radius);
+  background:var(--card); cursor:pointer; font:inherit; text-align:left;
+  box-shadow:4px 4px 0 var(--line-soft)}
+.nb-dest:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
 .nb-dest .ic{font-size:24px}
 .nb-dest b{font-size:14px}
 .nb-dest .d{font-size:11.5px; color:var(--muted); line-height:1.5}
@@ -137,19 +154,48 @@ button .ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em}
   background:#fff; box-shadow:3px 3px 0 var(--line-soft)}
 
 /* 笔记本文件夹条：文件夹从笔记数据派生，没有分类时整条隐藏 */
-.folder-chip{display:inline-flex; align-items:center; gap:5px; padding:6px 13px;
-  border:2px solid var(--line); border-radius:99px; background:var(--card);
-  cursor:pointer; font-size:13px; font-weight:bold; box-shadow:2px 2px 0 var(--line-soft)}
-.folder-chip.on{border-color:var(--blue); background:var(--blue-weak); color:var(--blue)}
-.folder-chip .fcnt{font-size:11px; color:var(--muted); font-weight:normal}
+/* 面包屑：手绘小标签（歪圆角 + 硬阴影），当前层高亮 */
+.nb-crumbs{display:flex; align-items:center; gap:5px; flex-wrap:wrap}
+.crumb{display:inline-flex; align-items:center; gap:5px; padding:6px 14px;
+  border:2px solid var(--text); border-radius:var(--radius-sm); background:var(--card);
+  cursor:pointer; font:inherit; font-size:13px; font-weight:bold; color:var(--text);
+  box-shadow:2px 2px 0 var(--line)}
+.crumb:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line)}
+.crumb .ic-svg{width:16px; height:16px; opacity:.8}
+.crumb.on{border-color:var(--blue); background:var(--blue-weak); color:var(--blue);
+  box-shadow:2px 2px 0 var(--blue-weak)}
+.crumb-sep{display:inline-flex; align-items:center; color:var(--muted); opacity:.5}
+.crumb-sep .ic-svg{width:14px; height:14px}
+
+/* 文件夹卡：左上角一个手绘"标签页"，像真的纸文件夹 */
+.nb-subgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px; grid-column:1/-1; margin-bottom:6px}
+.nb-subcard{position:relative; display:flex; flex-direction:column; align-items:flex-start;
+  gap:2px; padding:14px 14px 12px; border:2px solid var(--text);
+  border-radius:var(--radius); background:var(--card); cursor:pointer; font:inherit;
+  text-align:left; box-shadow:4px 4px 0 var(--line-soft); transition:transform .14s ease}
+.nb-subcard::before{content:""; position:absolute; top:-7px; left:18px; width:34px; height:9px;
+  border:2px solid var(--text); border-bottom:0; border-radius:9px 9px 0 0; background:var(--card)}
+.nb-subcard:hover{transform:translateY(-3px) rotate(-.6deg)}
+.nb-subcard:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
+.nb-subcard .ic-svg{color:var(--blue); margin-bottom:4px}
+.nb-subcard b{font-size:14px}
+.nb-subcard span{font-size:11.5px; color:var(--muted); font-weight:bold}
+
+/* 选择器里的二级项：缩进 + 一小段手绘引线 */
+.nb-frow.lvl2{margin-left:22px; position:relative}
+.nb-frow.lvl2::before{content:""; position:absolute; left:-14px; top:50%; width:10px; height:2px;
+  background:var(--line); border-radius:2px}
 
 /* 笔记本封面网格 */
 .nb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(146px,1fr)); gap:14px}
-.nb-card{position:relative; background:var(--card); border:2px solid var(--line); border-radius:10px;
-  padding:8px; cursor:pointer; transition:transform .15s}
-.nb-card:hover{transform:translateY(-2px)}
-.nb-cover{height:132px; border-radius:6px; margin-bottom:7px; position:relative; overflow:hidden;
-  border:1px solid var(--line-soft)}
+.nb-card{position:relative; background:var(--card); border:2px solid var(--text);
+  border-radius:var(--radius); padding:9px; cursor:pointer;
+  box-shadow:4px 4px 0 var(--line-soft); transition:transform .15s ease}
+.nb-card:hover{transform:translateY(-3px) rotate(.5deg)}
+.nb-card:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
+.nb-cover{height:132px; border-radius:8px; margin-bottom:8px; position:relative; overflow:hidden;
+  border:2px solid var(--line)}
 .nb-cover canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
 .nb-card .nm{font-weight:bold; font-size:13.5px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
 .nb-card .sub{font-size:11.5px; color:var(--muted); font-weight:bold}

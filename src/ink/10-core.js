@@ -151,7 +151,7 @@ function inkPlainStroke(s){
 function inkPlainPage(pg){
   if(Array.isArray(pg)) return pg.map(inkPlainStroke);
   const o = {...pg};
-  delete o._h; delete o._img;
+  delete o._h; delete o._img; delete o._imgDisp; delete o._imgMiss;
   o.layers = (pg.layers||[]).map(l => ({...l, strokes: l.strokes.map(inkPlainStroke)}));
   return o;
 }

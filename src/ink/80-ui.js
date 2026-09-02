@@ -4,9 +4,10 @@
    旧版笔记本全屏用的是另一套 class（.ink-bar/.ink-c/.ink-w），
    而事件是按 data-tool/data-act 匹配的，所以笔记本里整条工具栏根本点不动。
    现在只有这一份 HTML 和这一份接线。 */
-function inkToolBtn(tool, ic, title){
+/* 工具按钮：图标 + 中文标注。光图标认不出是什么，标注是必需的不是装饰。 */
+function inkToolBtn(tool, ic, label, title){
   const on = inkPad.tool === tool ? " on" : "";
-  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${icon(ic)}</button>`;
+  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${icon(ic)}<em>${label}</em></button>`;
 }
 function inkToolbarHTML(){
   const st = inkPad;
@@ -15,26 +16,26 @@ function inkToolbarHTML(){
   const pg = st.pages[st.page];
   const layers = (pg && !Array.isArray(pg) && pg.layers) || null;
   return `
-    ${inkToolBtn("pen","pen","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
-    ${inkToolBtn("highlighter","marker","荧光笔：半透明，重叠不加深")}
-    ${inkToolBtn("line","line","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
-    ${inkToolBtn("lasso","lasso","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
-    ${inkToolBtn("erase","eraser","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
-    ${inkToolBtn("pan","hand","手型：拖动纸面（双指捏合随时可用）")}
+    ${inkToolBtn("pen","pen","笔","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
+    ${inkToolBtn("highlighter","marker","荧光笔","荧光笔：半透明，重叠不加深")}
+    ${inkToolBtn("line","line","直线","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
+    ${inkToolBtn("lasso","lasso","套索","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
+    ${inkToolBtn("erase","eraser","橡皮","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
+    ${inkToolBtn("pan","hand","移动","手型：拖动纸面（双指捏合随时可用）")}
     ${sep}
-    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>${icon("undo")}</button>
-    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>${icon("redo")}</button>
+    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>${icon("undo")}<em>撤销</em></button>
+    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>${icon("redo")}<em>重做</em></button>
     ${sep}
     ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small ink-page" data-act="goto" title="点一下输入页码跳转">${st.page+1}/${st.pages.length}页</button>
     ${st.pages.length>1?`<input type="range" class="ink-range ink-pager" data-k="pager" min="1" max="${st.pages.length}" value="${st.page+1}" title="快速翻页拉条">`:""}
     <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">${icon("plus")} 加页</button>
-    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">${icon("trash")}</button>`:""}`:""}
-    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">${icon("grid")}</button>`:""}
-    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">${icon("layers")} ${st.activeLayer+1}/${layers.length}</button>`:""}
+    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">${icon("trash")}<em>删页</em></button>`:""}`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">${icon("grid")}<em>页面</em></button>`:""}
+    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">${icon("layers")}<em>图层 ${st.activeLayer+1}/${layers.length}</em></button>`:""}
     ${sep}
-    <button class="btn ghost small" data-act="zoomout" title="缩小">－</button>
+    <button class="btn ghost small" data-act="zoomout" title="缩小">${icon("zoomOut")}</button>
     <button class="btn ghost small ink-zoom" data-act="fitview" title="点一下回到适配大小（G）">${Math.round(st.view.z*100)}%</button>
-    <button class="btn ghost small" data-act="zoomin" title="放大">＋</button>
+    <button class="btn ghost small" data-act="zoomin" title="放大">${icon("zoomIn")}</button>
     ${st.fs?"":`<button class="btn ghost small" data-act="fs" title="全屏书写">${icon("expand")} 全屏</button>`}
     ${st.lasso?`
     <div class="inkset">
@@ -375,12 +376,12 @@ function inkFullscreen(){
   fs.className = "inkfs";
   fs.innerHTML = `
     <div class="inkfs-top">
-      <button class="btn small" data-act="unfs">${st.note ? "🔙 返回" : "✅ 写完了"}</button>
+      <button class="btn small" data-act="unfs">${st.note ? icon("back") + " 返回" : icon("check") + " 写完了"}</button>
       <span class="ink-name">${st.note ? (st.note.title||"未命名笔记") : "手写演算"}</span>
       ${st.note?`<button class="btn ghost small" data-act="rename" title="改名字">${icon("pen")}</button>`:""}
       <div style="flex:1"></div>
-      ${st.note?`<button class="btn ghost small" data-act="export" title="导出成 PDF">⬇️ PDF</button>`:""}
-      <button class="btn ghost small" data-act="clearpage" title="清空当前页">🧹</button>
+      ${st.note?`<button class="btn ghost small" data-act="export" title="导出成 PDF">${icon("save")} 导出 PDF</button>`:""}
+      <button class="btn ghost small" data-act="clearpage" title="清空当前页的所有笔迹">${icon("eraser")} 清空本页</button>
     </div>
     ${st.qHTML?`<div class="inkfs-q">${st.qHTML}</div>`:""}
     <div class="inkfs-body"></div>
@@ -487,7 +488,14 @@ function inkAutoSave(now){
   const st = inkPad; if(!st || !st.saveFn) return;
   clearTimeout(inkSaveTimer);
   if(now){ st.saveFn(); return; }
-  inkSaveTimer = setTimeout(()=>{ if(inkPad === st && st.dirty) st.saveFn(); }, 1200);
+  /* 存档要深拷贝所有笔迹再写 IndexedDB。笔还在纸上就存 = 写字中途卡一下，
+     所以每来一笔就把定时器往后推，笔停 1.8 秒才落库（数据不会丢：
+     退出笔记、切走页面、返回键都会强制存一次）。 */
+  inkSaveTimer = setTimeout(()=>{
+    if(inkPad !== st || !st.dirty) return;
+    if(st.cur){ inkAutoSave(); return; }        // 还在写：再等一轮
+    st.saveFn();
+  }, 1800);
 }
 /* 自由手写存档：不评分，作为一条 {g:"ink"} 记录进 history */
 async function inkSaveFree(){

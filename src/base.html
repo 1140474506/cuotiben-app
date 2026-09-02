@@ -3592,6 +3592,9 @@ function remindCheck(){
   if(last === today) return;                     // 今天已经响过
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1], +m[2]);
   if(now < target) return;                       // 还没到点
+  /* 补提醒只补 4 小时内的：设 8:00 而 9 点才打开 → 该提醒；设 0:20 而
+     晚上 23 点打开 → 那是 23 小时前的事，弹出来只是噪音，等明天的正点。 */
+  if(now - target > 4*3600*1000) return;
   try{ localStorage.setItem("cyt_remindLast", today); }catch(e){}
   remindFire(false);
 }
@@ -4416,9 +4419,24 @@ function syncSoon(){
   clearTimeout(syncTimer);
   syncTimer = setTimeout(()=> autoSync(), WRITE_DEBOUNCE);
 }
+/* 正在写字吗？同步要 gzip 整份数据 + JSON.stringify 大对象，几十毫秒的主线程
+   占用，落在笔尖上就是一次卡顿。写字期间一律推迟，抬笔 1.5 秒后再补。 */
+function inkBusy(){
+  try{
+    if(typeof inkPad === "undefined" || !inkPad) return false;
+    if(inkPad.cur) return true;
+    if(typeof inkPenDown !== "undefined" && inkPenDown) return true;
+    return typeof inkPenUpAt !== "undefined" && performance.now() - inkPenUpAt < 1500;
+  }catch(e){ return false; }
+}
 /* 自动触发都走这里：失败退避期内直接放弃，不排队堆积 */
 function autoSync(){
   if(!syncAutoOn() || syncing || Date.now() < syncNextTry) return;
+  if(inkBusy()){                       // 写字中：4 秒后再看
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(autoSync, 4000);
+    return;
+  }
   doSync(true).catch(()=>{});
 }
 /* 30 秒一次的心跳。只做几个整数比较，没到点就立刻返回——

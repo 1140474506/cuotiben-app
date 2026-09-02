@@ -367,8 +367,19 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
   background:#fff; margin-top:6px}
 
 /* 工具栏：主排 + 设置抽屉，内联和全屏共用 */
-.inkbar{display:flex; gap:6px; align-items:center; margin-top:10px; flex-wrap:wrap}
+.inkbar{display:flex; gap:7px; align-items:center; margin-top:10px; flex-wrap:wrap}
 .inkbar .on{background:var(--blue-weak); color:var(--blue); border-color:var(--blue)}
+/* 工具按钮 = 图标在上、中文在下（光看图标认不出是什么） */
+.ink-tool{display:inline-flex; flex-direction:column; align-items:center; gap:1px;
+  padding:5px 11px 4px; line-height:1.15}
+.ink-tool .ic-svg{width:20px; height:20px}
+.ink-tool em{font-style:normal; font-size:11px; font-weight:bold; letter-spacing:.02em}
+.inkbar .btn.small em{font-style:normal; font-size:11.5px; font-weight:bold; margin-left:4px}
+@media (max-width:700px){
+  .ink-tool{padding:5px 8px 4px}
+  .ink-tool em{font-size:10px}
+  .inkbar .btn.small em{display:none}   /* 窄屏保留工具标注，其余靠图标 */
+}
 .inkbar .ink-seg{width:2px; height:20px; background:var(--line); flex:none; border-radius:2px}
 .inkbar .ink-name{font-weight:bold; font-size:13px; max-width:34vw; overflow:hidden;
   white-space:nowrap; text-overflow:ellipsis}
@@ -398,16 +409,17 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 /* 全屏容器：顶栏 + 纸面 + 底部工具栏，纸面吃掉剩下的全部高度 */
 .inkfs{position:fixed; inset:0; z-index:150; background:var(--bg);
   display:flex; flex-direction:column; touch-action:none; overscroll-behavior:none}
-.inkfs .inkfs-top{display:flex; gap:10px; align-items:center; padding:8px 12px; background:#fff;
-  border-bottom:2px solid var(--line); flex:none; z-index:3}
+.inkfs .inkfs-top{display:flex; gap:9px; align-items:center; padding:9px 13px; background:#fff;
+  border-bottom:2.5px solid var(--text); flex:none; z-index:3}
+.inkfs .inkfs-top .ink-name{font-size:14.5px}
 .inkfs .inkfs-q{max-height:32%; overflow:auto; padding:12px 16px; background:#fff;
   border-bottom:2px solid var(--line); font-size:14.5px; line-height:1.7; touch-action:pan-y}
 .inkfs .inkfs-body{flex:1 1 0; min-height:0; position:relative; margin:8px; overflow:hidden}
 /* 全屏纸面必须撑满 body——没有这条，wrap 高度塌成 0，画布 0×0，
    inkResizeCanvases 直接放弃，_map 永远是 null，笔记里一笔都写不进去 */
 .inkfs .inkfs-body .inkwrap{height:100%}
-.inkfs .inkbar{flex:none; margin:0; padding:8px 12px; background:#fff;
-  border-top:2px solid var(--line); position:relative; z-index:3}
+.inkfs .inkbar{flex:none; margin:0; padding:9px 13px; background:#fff;
+  border-top:2.5px solid var(--text); position:relative; z-index:3}
 .inkfs .inkfs-scroll{flex:1 1 0; min-height:0; overflow:auto; -webkit-overflow-scrolling:touch}
 
 /* 橡皮光标圈 / 长按进度圈：body 下的两个 fixed div，只改 left/top/width，
@@ -422,9 +434,9 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 .ink-holdring.grow{width:52px; height:52px; opacity:.25}
 
 /* 图层面板 / 页面缩略图抽屉 */
-.ink-panel{position:absolute; z-index:20; width:230px; max-height:min(62vh,430px); overflow:auto;
-  background:var(--card); border:2px solid var(--text); border-radius:10px;
-  box-shadow:var(--shadow-modal); padding:10px}
+.ink-panel{position:absolute; z-index:20; width:236px; max-height:min(62vh,430px); overflow:auto;
+  background:var(--card); border:2.5px solid var(--text); border-radius:var(--radius);
+  box-shadow:5px 5px 0 var(--line-soft); padding:12px}
 .ink-panel[hidden]{display:none}
 .ink-panel .ptitle{font-weight:bold; font-size:13px; margin-bottom:8px}
 .ink-row{display:flex; align-items:center; gap:6px; padding:5px 6px; border-radius:6px;
@@ -441,8 +453,8 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 /* 新建笔记弹窗：名称 + 文件夹点选 + 纸张样式 */
 .nb-flist{max-height:34vh; overflow:auto; display:flex; flex-direction:column; gap:5px}
 .nb-frow{display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:9px 12px; border:2px solid var(--line); border-radius:9px; background:var(--bg);
-  cursor:pointer; font:inherit; font-size:13.5px; text-align:left}
+  padding:9px 13px; border:2px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--bg); cursor:pointer; font:inherit; font-size:13.5px; text-align:left}
 .nb-frow .tick{color:var(--muted); font-size:11px}
 .nb-frow.on{border-color:var(--blue); background:var(--blue-weak)}
 .nb-frow.on .tick{color:var(--blue)}
@@ -457,23 +469,28 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 .nb-new-title:focus{outline:none; border-color:var(--blue)}
 .nb-style-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .nb-style{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  padding:12px; border:2px solid var(--line); border-radius:10px; background:var(--card);
-  cursor:pointer; text-align:left; font:inherit}
+  padding:13px; border:2px solid var(--text); border-radius:var(--radius);
+  background:var(--card); cursor:pointer; text-align:left; font:inherit;
+  box-shadow:3px 3px 0 var(--line-soft)}
+.nb-style:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line-soft)}
 .nb-style .ic{font-size:22px}
 .nb-style b{font-size:14px}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
 /* SVG 图标（icon()）：默认跟文字等大，按钮里略大一点；颜色 currentColor */
-.ic-svg{width:1.05em; height:1.05em; vertical-align:-0.16em; flex:none; display:inline-block}
-button .ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em}
-.ic-svg.lg{width:22px; height:22px}
+.ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em; flex:none; display:inline-block;
+  stroke-width:2.1}
+button .ic-svg{width:1.2em; height:1.2em}
+.ic-svg.lg{width:24px; height:24px; stroke-width:1.95}
 
 /* 「打开方式」目的地选择卡片 */
 .nb-dest-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .nb-dest{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  padding:13px 12px; border:2px solid var(--line); border-radius:12px; background:var(--card);
-  cursor:pointer; font:inherit; text-align:left}
+  padding:14px 13px; border:2px solid var(--text); border-radius:var(--radius);
+  background:var(--card); cursor:pointer; font:inherit; text-align:left;
+  box-shadow:4px 4px 0 var(--line-soft)}
+.nb-dest:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
 .nb-dest .ic{font-size:24px}
 .nb-dest b{font-size:14px}
 .nb-dest .d{font-size:11.5px; color:var(--muted); line-height:1.5}
@@ -488,19 +505,48 @@ button .ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em}
   background:#fff; box-shadow:3px 3px 0 var(--line-soft)}
 
 /* 笔记本文件夹条：文件夹从笔记数据派生，没有分类时整条隐藏 */
-.folder-chip{display:inline-flex; align-items:center; gap:5px; padding:6px 13px;
-  border:2px solid var(--line); border-radius:99px; background:var(--card);
-  cursor:pointer; font-size:13px; font-weight:bold; box-shadow:2px 2px 0 var(--line-soft)}
-.folder-chip.on{border-color:var(--blue); background:var(--blue-weak); color:var(--blue)}
-.folder-chip .fcnt{font-size:11px; color:var(--muted); font-weight:normal}
+/* 面包屑：手绘小标签（歪圆角 + 硬阴影），当前层高亮 */
+.nb-crumbs{display:flex; align-items:center; gap:5px; flex-wrap:wrap}
+.crumb{display:inline-flex; align-items:center; gap:5px; padding:6px 14px;
+  border:2px solid var(--text); border-radius:var(--radius-sm); background:var(--card);
+  cursor:pointer; font:inherit; font-size:13px; font-weight:bold; color:var(--text);
+  box-shadow:2px 2px 0 var(--line)}
+.crumb:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line)}
+.crumb .ic-svg{width:16px; height:16px; opacity:.8}
+.crumb.on{border-color:var(--blue); background:var(--blue-weak); color:var(--blue);
+  box-shadow:2px 2px 0 var(--blue-weak)}
+.crumb-sep{display:inline-flex; align-items:center; color:var(--muted); opacity:.5}
+.crumb-sep .ic-svg{width:14px; height:14px}
+
+/* 文件夹卡：左上角一个手绘"标签页"，像真的纸文件夹 */
+.nb-subgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px; grid-column:1/-1; margin-bottom:6px}
+.nb-subcard{position:relative; display:flex; flex-direction:column; align-items:flex-start;
+  gap:2px; padding:14px 14px 12px; border:2px solid var(--text);
+  border-radius:var(--radius); background:var(--card); cursor:pointer; font:inherit;
+  text-align:left; box-shadow:4px 4px 0 var(--line-soft); transition:transform .14s ease}
+.nb-subcard::before{content:""; position:absolute; top:-7px; left:18px; width:34px; height:9px;
+  border:2px solid var(--text); border-bottom:0; border-radius:9px 9px 0 0; background:var(--card)}
+.nb-subcard:hover{transform:translateY(-3px) rotate(-.6deg)}
+.nb-subcard:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
+.nb-subcard .ic-svg{color:var(--blue); margin-bottom:4px}
+.nb-subcard b{font-size:14px}
+.nb-subcard span{font-size:11.5px; color:var(--muted); font-weight:bold}
+
+/* 选择器里的二级项：缩进 + 一小段手绘引线 */
+.nb-frow.lvl2{margin-left:22px; position:relative}
+.nb-frow.lvl2::before{content:""; position:absolute; left:-14px; top:50%; width:10px; height:2px;
+  background:var(--line); border-radius:2px}
 
 /* 笔记本封面网格 */
 .nb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(146px,1fr)); gap:14px}
-.nb-card{position:relative; background:var(--card); border:2px solid var(--line); border-radius:10px;
-  padding:8px; cursor:pointer; transition:transform .15s}
-.nb-card:hover{transform:translateY(-2px)}
-.nb-cover{height:132px; border-radius:6px; margin-bottom:7px; position:relative; overflow:hidden;
-  border:1px solid var(--line-soft)}
+.nb-card{position:relative; background:var(--card); border:2px solid var(--text);
+  border-radius:var(--radius); padding:9px; cursor:pointer;
+  box-shadow:4px 4px 0 var(--line-soft); transition:transform .15s ease}
+.nb-card:hover{transform:translateY(-3px) rotate(.5deg)}
+.nb-card:active{transform:translate(1px,1px); box-shadow:2px 2px 0 var(--line-soft)}
+.nb-cover{height:132px; border-radius:8px; margin-bottom:8px; position:relative; overflow:hidden;
+  border:2px solid var(--line)}
 .nb-cover canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
 .nb-card .nm{font-weight:bold; font-size:13.5px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
 .nb-card .sub{font-size:11.5px; color:var(--muted); font-weight:bold}
@@ -1110,7 +1156,7 @@ const $ = id => document.getElementById(id);
      · localStorage 键 "cyt_cfg"
      · 云端文件名 questions/books/config.json.gz 和仓库名本身 */
 const APP_NAME = "错了没";
-const APP_BUILD = "2026-09-02 22:00";   // 构建时间戳，build.py 注入；设置页的「检查更新」靠它对比线上版本
+const APP_BUILD = "2026-09-03 00:04";   // 构建时间戳，build.py 注入；设置页的「检查更新」靠它对比线上版本
 /* 版本号：改完代码必须 +1。浏览器对这个 HTML 有缓存，用户（包括我自己）
    在平板上测的经常是旧页面还以为新功能坏了——设置页最底下和 F12 控制台
    都能看到版本，先对版本再报 bug。 */
@@ -3050,7 +3096,7 @@ function inkPlainStroke(s){
 function inkPlainPage(pg){
   if(Array.isArray(pg)) return pg.map(inkPlainStroke);
   const o = {...pg};
-  delete o._h; delete o._img;
+  delete o._h; delete o._img; delete o._imgDisp; delete o._imgMiss;
   o.layers = (pg.layers||[]).map(l => ({...l, strokes: l.strokes.map(inkPlainStroke)}));
   return o;
 }
@@ -3330,13 +3376,28 @@ function inkPaintStrokes(ctx, strokes, clip){
 /* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明）。
    clip = 可见区域（页内坐标），无限画布页的底纹必须按它裁着画——
    20000×20000 的点阵是 25 万个点，全画一帧就是几十毫秒的卡顿。 */
-function inkPaintBg(ctx, pg, w, h, clip){
+/* 屏幕渲染用的降采样副本。导入的 PDF 页现在是 3600px 打印精度，每帧把这么大的
+   位图重新缩放/上传纹理，在平板上就是肉眼可见的掉帧。降到 1800px 存一份，
+   导出仍然用原图（inkPaintPageTo 传 hiRes=true）。 */
+function inkBgDisplay(pg, img){
+  if(pg._imgDisp) return pg._imgDisp;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.min(1, 1800 / Math.max(iw, ih));
+  if(k >= 1){ pg._imgDisp = img; return img; }
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(iw * k); cv.height = Math.round(ih * k);
+  cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+  pg._imgDisp = cv;
+  return cv;
+}
+function inkPaintBg(ctx, pg, w, h, clip, hiRes){
   if(!Array.isArray(pg) && pg.bgType === "html") return;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, w, h);
   if(!Array.isArray(pg) && pg.bgType === "image"){
     const img = inkBgImage(pg);
-    if(img && img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, w, h);
+    if(img && img.complete && img.naturalWidth)
+      ctx.drawImage(hiRes ? img : inkBgDisplay(pg, img), 0, 0, w, h);
     return;
   }
   const grid = Array.isArray(pg) ? "dot" : (pg.grid || "dot");
@@ -3466,6 +3527,12 @@ function inkRender(){
   if(pg !== st.page){ st.page = pg; inkPageLabel(); inkThumbSelect(); }
   /* html 背景页：iframe 跟着同一套变换走，笔迹才对得上印刷内容 */
   if(st.frame) inkSyncFrame(m, lay);
+  /* 落稿的最后一步：dry 已经画好，这时才擦掉 wet/pred，中间不会空一帧 */
+  if(st._wetPending && !st.cur){
+    st._wetPending = false;
+    inkWetClear();
+    inkPredClear();
+  }
 }
 /* 正在写的那一笔画在 wet 层。只画新增的那一小段：把 Path2D 缓存丢掉重建整条
    在长笔画上是 O(n²)，改成「从上次画到的点接着往下画」，每次都是常数工作量。
@@ -3505,7 +3572,10 @@ function inkPredClear(){
   const st = inkPad; if(!st || !st.predC) return;
   const x = st.predX;
   x.setTransform(1,0,0,1,0,0);
-  x.clearRect(0, 0, st.predC.width, st.predC.height);
+  const d = st._predBB;    // 只清上次画过的那一小块（见 70-input 的预测分支）
+  if(d) x.clearRect(d[0], d[1], d[2]-d[0], d[3]-d[1]);
+  else x.clearRect(0, 0, st.predC.width, st.predC.height);
+  st._predBB = null;
 }
 /* html 背景页的 iframe：跟着 view 一起缩放平移。
    iframe 里是一张固定 INK_PAPER_W 宽的纸，用 transform 贴到内容坐标上。 */
@@ -3559,7 +3629,7 @@ function inkPaintPageTo(ctx, pgData, outW, outH, opaque, win){
   ctx.scale(k, k);
   ctx.translate(-bx, -by);
   const frame = [bx, by, bx+bw, by+bh];
-  inkPaintBg(ctx, pgData, w, h, frame);
+  inkPaintBg(ctx, pgData, w, h, frame, true);   // 导出/缩略图用原图，不用降采样副本
   inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), frame);
   ctx.restore();
 }
@@ -4331,8 +4401,11 @@ function inkCommitStroke(){
   arr.push(s);
   inkPush({k:"add", pg:pi, layer, s, at:arr.length-1});
   st.strokeCount = (st.strokeCount|0) + 1;
-  inkRender();          // 同步画进 dry（不排 rAF，免得空一帧）
-  inkWetClear();
+  /* 落稿：以前这里同步跑一次整卷重画（inkRender），一页 PDF 背景图就是
+     几百万像素的缩放，抬笔那一下明显顿一下。改成排一帧：wet 层先留着显示
+     （所以不会闪空），dry 画完后在 inkRender 末尾统一清掉 wet。 */
+  st._wetPending = true;
+  inkInvalidate();
   inkThumbsRefresh();
   if(st.undo.length === 1) inkSyncBar();     // 第一笔之后撤销键该亮起来
 }
@@ -4525,6 +4598,7 @@ function inkWireWrap(wrap){
     const v = inkSampleV(st, e, h[1], h[2], e.timeStamp || performance.now());
     st._curPgIdx = h[0];
     st._curT0 = performance.now();
+    if(st._wetPending){ inkWetClear(); st._wetPending = false; }   // 极快连写：上一笔的 wet 还没被 rAF 清掉
     st.cur = inkNewStroke(st, v);
     st.cur.p.push(h[1], h[2], v);
     st._penStart = [h[1], h[2]];
@@ -4621,7 +4695,9 @@ function inkWireWrap(wrap){
     /* 预测点：只画一小截，抬笔/下一帧覆盖。给的是原始屏幕坐标，不进数据。 */
     if(!line && st.predict && e.getPredictedEvents){
       const pe = e.getPredictedEvents();
-      inkPredClear();
+      /* 只在「有预测点」或「上次画过」时清：全画布 clearRect 在 120Hz 笔 +
+         retina 画布上是每秒几亿像素的无用功，这是手写延迟的主要来源之一。 */
+      if((pe && pe.length) || st._predBB) inkPredClear();
       if(pe && pe.length){
         const p = st.cur.p, n = (p.length/3)|0;
         const tail = [p[(n-1)*3], p[(n-1)*3+1], p[(n-1)*3+2]];
@@ -4637,6 +4713,20 @@ function inkWireWrap(wrap){
         inkRibbon(pa, tail, st.cur.w, 0, (tail.length/3)|0);
         ctx.fill(pa);
         ctx.globalAlpha = 1;
+        /* 记下这一小截的设备像素包围盒，下次只清这块 */
+        let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+        for(let i = 0; i < tail.length; i += 3){
+          if(tail[i] < bx0) bx0 = tail[i];
+          if(tail[i] > bx1) bx1 = tail[i];
+          if(tail[i+1] < by0) by0 = tail[i+1];
+          if(tail[i+1] > by1) by1 = tail[i+1];
+        }
+        const dp = st.dpr, pad = (st.cur.w * 2 + 8) * m.k * dp;
+        const dx = px2 => ((px2 + ox) * m.k + m.ox) * dp;
+        const dy = py2 => ((py2 + oy) * m.k + m.oy) * dp;
+        st._predBB = [Math.max(0, dx(bx0) - pad), Math.max(0, dy(by0) - pad),
+                      Math.min(st.predC.width, dx(bx1) + pad),
+                      Math.min(st.predC.height, dy(by1) + pad)];
       }
     }
   };
@@ -4768,9 +4858,10 @@ document.addEventListener("keydown", e=>{
    旧版笔记本全屏用的是另一套 class（.ink-bar/.ink-c/.ink-w），
    而事件是按 data-tool/data-act 匹配的，所以笔记本里整条工具栏根本点不动。
    现在只有这一份 HTML 和这一份接线。 */
-function inkToolBtn(tool, ic, title){
+/* 工具按钮：图标 + 中文标注。光图标认不出是什么，标注是必需的不是装饰。 */
+function inkToolBtn(tool, ic, label, title){
   const on = inkPad.tool === tool ? " on" : "";
-  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${icon(ic)}</button>`;
+  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${icon(ic)}<em>${label}</em></button>`;
 }
 function inkToolbarHTML(){
   const st = inkPad;
@@ -4779,26 +4870,26 @@ function inkToolbarHTML(){
   const pg = st.pages[st.page];
   const layers = (pg && !Array.isArray(pg) && pg.layers) || null;
   return `
-    ${inkToolBtn("pen","pen","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
-    ${inkToolBtn("highlighter","marker","荧光笔：半透明，重叠不加深")}
-    ${inkToolBtn("line","line","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
-    ${inkToolBtn("lasso","lasso","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
-    ${inkToolBtn("erase","eraser","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
-    ${inkToolBtn("pan","hand","手型：拖动纸面（双指捏合随时可用）")}
+    ${inkToolBtn("pen","pen","笔","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
+    ${inkToolBtn("highlighter","marker","荧光笔","荧光笔：半透明，重叠不加深")}
+    ${inkToolBtn("line","line","直线","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
+    ${inkToolBtn("lasso","lasso","套索","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
+    ${inkToolBtn("erase","eraser","橡皮","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
+    ${inkToolBtn("pan","hand","移动","手型：拖动纸面（双指捏合随时可用）")}
     ${sep}
-    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>${icon("undo")}</button>
-    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>${icon("redo")}</button>
+    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>${icon("undo")}<em>撤销</em></button>
+    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>${icon("redo")}<em>重做</em></button>
     ${sep}
     ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small ink-page" data-act="goto" title="点一下输入页码跳转">${st.page+1}/${st.pages.length}页</button>
     ${st.pages.length>1?`<input type="range" class="ink-range ink-pager" data-k="pager" min="1" max="${st.pages.length}" value="${st.page+1}" title="快速翻页拉条">`:""}
     <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">${icon("plus")} 加页</button>
-    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">${icon("trash")}</button>`:""}`:""}
-    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">${icon("grid")}</button>`:""}
-    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">${icon("layers")} ${st.activeLayer+1}/${layers.length}</button>`:""}
+    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">${icon("trash")}<em>删页</em></button>`:""}`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">${icon("grid")}<em>页面</em></button>`:""}
+    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">${icon("layers")}<em>图层 ${st.activeLayer+1}/${layers.length}</em></button>`:""}
     ${sep}
-    <button class="btn ghost small" data-act="zoomout" title="缩小">－</button>
+    <button class="btn ghost small" data-act="zoomout" title="缩小">${icon("zoomOut")}</button>
     <button class="btn ghost small ink-zoom" data-act="fitview" title="点一下回到适配大小（G）">${Math.round(st.view.z*100)}%</button>
-    <button class="btn ghost small" data-act="zoomin" title="放大">＋</button>
+    <button class="btn ghost small" data-act="zoomin" title="放大">${icon("zoomIn")}</button>
     ${st.fs?"":`<button class="btn ghost small" data-act="fs" title="全屏书写">${icon("expand")} 全屏</button>`}
     ${st.lasso?`
     <div class="inkset">
@@ -5139,12 +5230,12 @@ function inkFullscreen(){
   fs.className = "inkfs";
   fs.innerHTML = `
     <div class="inkfs-top">
-      <button class="btn small" data-act="unfs">${st.note ? "🔙 返回" : "✅ 写完了"}</button>
+      <button class="btn small" data-act="unfs">${st.note ? icon("back") + " 返回" : icon("check") + " 写完了"}</button>
       <span class="ink-name">${st.note ? (st.note.title||"未命名笔记") : "手写演算"}</span>
       ${st.note?`<button class="btn ghost small" data-act="rename" title="改名字">${icon("pen")}</button>`:""}
       <div style="flex:1"></div>
-      ${st.note?`<button class="btn ghost small" data-act="export" title="导出成 PDF">⬇️ PDF</button>`:""}
-      <button class="btn ghost small" data-act="clearpage" title="清空当前页">🧹</button>
+      ${st.note?`<button class="btn ghost small" data-act="export" title="导出成 PDF">${icon("save")} 导出 PDF</button>`:""}
+      <button class="btn ghost small" data-act="clearpage" title="清空当前页的所有笔迹">${icon("eraser")} 清空本页</button>
     </div>
     ${st.qHTML?`<div class="inkfs-q">${st.qHTML}</div>`:""}
     <div class="inkfs-body"></div>
@@ -5251,7 +5342,14 @@ function inkAutoSave(now){
   const st = inkPad; if(!st || !st.saveFn) return;
   clearTimeout(inkSaveTimer);
   if(now){ st.saveFn(); return; }
-  inkSaveTimer = setTimeout(()=>{ if(inkPad === st && st.dirty) st.saveFn(); }, 1200);
+  /* 存档要深拷贝所有笔迹再写 IndexedDB。笔还在纸上就存 = 写字中途卡一下，
+     所以每来一笔就把定时器往后推，笔停 1.8 秒才落库（数据不会丢：
+     退出笔记、切走页面、返回键都会强制存一次）。 */
+  inkSaveTimer = setTimeout(()=>{
+    if(inkPad !== st || !st.dirty) return;
+    if(st.cur){ inkAutoSave(); return; }        // 还在写：再等一轮
+    st.saveFn();
+  }, 1800);
 }
 /* 自由手写存档：不评分，作为一条 {g:"ink"} 记录进 history */
 async function inkSaveFree(){
@@ -6923,6 +7021,9 @@ function remindCheck(){
   if(last === today) return;                     // 今天已经响过
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1], +m[2]);
   if(now < target) return;                       // 还没到点
+  /* 补提醒只补 4 小时内的：设 8:00 而 9 点才打开 → 该提醒；设 0:20 而
+     晚上 23 点打开 → 那是 23 小时前的事，弹出来只是噪音，等明天的正点。 */
+  if(now - target > 4*3600*1000) return;
   try{ localStorage.setItem("cyt_remindLast", today); }catch(e){}
   remindFire(false);
 }
@@ -7747,9 +7848,24 @@ function syncSoon(){
   clearTimeout(syncTimer);
   syncTimer = setTimeout(()=> autoSync(), WRITE_DEBOUNCE);
 }
+/* 正在写字吗？同步要 gzip 整份数据 + JSON.stringify 大对象，几十毫秒的主线程
+   占用，落在笔尖上就是一次卡顿。写字期间一律推迟，抬笔 1.5 秒后再补。 */
+function inkBusy(){
+  try{
+    if(typeof inkPad === "undefined" || !inkPad) return false;
+    if(inkPad.cur) return true;
+    if(typeof inkPenDown !== "undefined" && inkPenDown) return true;
+    return typeof inkPenUpAt !== "undefined" && performance.now() - inkPenUpAt < 1500;
+  }catch(e){ return false; }
+}
 /* 自动触发都走这里：失败退避期内直接放弃，不排队堆积 */
 function autoSync(){
   if(!syncAutoOn() || syncing || Date.now() < syncNextTry) return;
+  if(inkBusy()){                       // 写字中：4 秒后再看
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(autoSync, 4000);
+    return;
+  }
   doSync(true).catch(()=>{});
 }
 /* 30 秒一次的心跳。只做几个整数比较，没到点就立刻返回——

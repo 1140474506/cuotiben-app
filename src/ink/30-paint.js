@@ -101,13 +101,28 @@ function inkPaintStrokes(ctx, strokes, clip){
 /* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明）。
    clip = 可见区域（页内坐标），无限画布页的底纹必须按它裁着画——
    20000×20000 的点阵是 25 万个点，全画一帧就是几十毫秒的卡顿。 */
-function inkPaintBg(ctx, pg, w, h, clip){
+/* 屏幕渲染用的降采样副本。导入的 PDF 页现在是 3600px 打印精度，每帧把这么大的
+   位图重新缩放/上传纹理，在平板上就是肉眼可见的掉帧。降到 1800px 存一份，
+   导出仍然用原图（inkPaintPageTo 传 hiRes=true）。 */
+function inkBgDisplay(pg, img){
+  if(pg._imgDisp) return pg._imgDisp;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.min(1, 1800 / Math.max(iw, ih));
+  if(k >= 1){ pg._imgDisp = img; return img; }
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(iw * k); cv.height = Math.round(ih * k);
+  cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+  pg._imgDisp = cv;
+  return cv;
+}
+function inkPaintBg(ctx, pg, w, h, clip, hiRes){
   if(!Array.isArray(pg) && pg.bgType === "html") return;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, w, h);
   if(!Array.isArray(pg) && pg.bgType === "image"){
     const img = inkBgImage(pg);
-    if(img && img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, w, h);
+    if(img && img.complete && img.naturalWidth)
+      ctx.drawImage(hiRes ? img : inkBgDisplay(pg, img), 0, 0, w, h);
     return;
   }
   const grid = Array.isArray(pg) ? "dot" : (pg.grid || "dot");
