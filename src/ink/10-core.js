@@ -78,6 +78,10 @@ function inkSavePref(){
 function inkHaptic(ms){
   const st = inkPad;
   if(!st || st.haptic === false) return;
+  /* 优先笔自己的马达（APP 的 penHaptic 桥：找得到带马达的手写笔就震笔，
+     找不到自动回落平板）。网页端没有桥，走 navigator.vibrate。 */
+  const b = window.AndroidBridge;
+  if(b && b.penHaptic){ try{ b.penHaptic(ms || 8); return; }catch(e){} }
   if(navigator.vibrate) try{ navigator.vibrate(ms || 8); }catch(e){}
 }
 /* 旧版本存的是档位下标（width/hlWidth/eraser∈0..2），拉条时代存真实值。

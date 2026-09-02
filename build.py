@@ -21,7 +21,7 @@ note_tab = read_stripped(os.path.join(SRC, "note", "tab.html"))
 
 INK_PARTS = ["10-core.js", "20-geom.js", "30-paint.js", "40-render.js",
              "50-edit.js", "60-lasso.js", "70-input.js", "80-ui.js"]
-NOTE_PARTS = ["10-db.js", "20-ui.js", "30-io.js", "40-pdf.js"]
+NOTE_PARTS = ["10-db.js", "20-ui.js", "30-io.js", "40-pdf.js", "50-openwith.js"]
 
 ink_js = "\n".join(read_stripped(os.path.join(SRC, "ink", p)) for p in INK_PARTS)
 note_js = "\n".join(read_stripped(os.path.join(SRC, "note", p)) for p in NOTE_PARTS)

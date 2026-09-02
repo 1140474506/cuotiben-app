@@ -8,6 +8,13 @@ import android.content.Context;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.URLEncoder;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.pm.PackageManager;
@@ -17,6 +24,10 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.StrictMode;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
+import android.view.InputDevice;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import java.util.concurrent.CountDownLatch;
@@ -68,6 +79,10 @@ public class MainActivity extends Activity {
     private WebView web;
     private WebView printWeb;   // 打印用的离屏 WebView（渲染完交给系统打印服务）
     private long apkDlId = -1;      // 自更新 APK 的下载任务 id
+    // 「用错了没打开」/ 分享进来的文件：复制到缓存目录，经 __android_import__
+    // 拦截通道交给网页（同源 fetch，任意大小都行，不走 base64 桥）
+    private File importFile = null;
+    private String importMime = "", importName = "", importToken = "", pendingText = null;
     private BroadcastReceiver dlDone;
     private ValueCallback<Uri[]> fileCb;
     private String pendingName = "导出.pdf";
@@ -81,6 +96,7 @@ public class MainActivity extends Activity {
         setContentView(web);
         // 每次打开都把提醒闹钟排一遍（时间没变就是刷新，重启后被清空的也补上）
         RemindUtil.scheduleNext(this);
+        handleImportIntent(getIntent());   // 从文件管理器/分享进来的
         // 自更新：下载完成的广播 → 弹安装界面。系统保护广播，动态注册即可
         dlDone = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
@@ -123,7 +139,24 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView v, String url) {
-                // 给应用一个逃生口：真出问题时可以远程打点，暂不启用
+                deliverImport(0);     // 页面就绪了，把等着的导入递进去
+            }
+
+            /* 网页侧 fetch(__android_import__/<token>/xxx) 时把中转文件喂回去。
+               同源同 WebView，无 CORS、无大小限制。 */
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
+                try{
+                    Uri u = req.getUrl();
+                    String path = u.getPath();
+                    if(importFile != null && path != null && path.contains("/__android_import__/")
+                            && path.contains("/" + importToken + "/") && importFile.isFile()){
+                        return new WebResourceResponse(
+                                importMime == null || importMime.isEmpty() ? "application/octet-stream" : importMime,
+                                null, new FileInputStream(importFile));
+                    }
+                }catch(Throwable ignored){ }
+                return super.shouldInterceptRequest(v, req);
             }
 
             @Override
@@ -302,6 +335,114 @@ public class MainActivity extends Activity {
         } catch (Throwable e) {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        handleImportIntent(i);
+    }
+
+    /* ---------------- 打开方式 / 分享 ---------------- */
+    private void handleImportIntent(Intent it) {
+        if(it == null || it.getAction() == null) return;
+        String act = it.getAction();
+        try{
+            if(Intent.ACTION_VIEW.equals(act) && it.getData() != null){
+                if(stashImport(it.getData(), it.getType())) deliverImport(0);
+            } else if(Intent.ACTION_SEND.equals(act)){
+                String type = it.getType();
+                if(type != null && type.startsWith("text/")){
+                    String t = it.getStringExtra(Intent.EXTRA_TEXT);
+                    if(t != null && !t.isEmpty()){
+                        pendingText = t;
+                        importFile = null;
+                        deliverImport(0);
+                    }
+                    return;
+                }
+                Uri u = it.getParcelableExtra(Intent.EXTRA_STREAM);
+                if(u != null && stashImport(u, type)) deliverImport(0);
+            } else if(Intent.ACTION_SEND_MULTIPLE.equals(act)){
+                java.util.ArrayList<Uri> us = it.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+                if(us != null && !us.isEmpty()){
+                    if(us.size() > 1) Toast.makeText(this,
+                            "一次先处理第一个文件，剩下的再分享一次", Toast.LENGTH_SHORT).show();
+                    if(stashImport(us.get(0), it.getType())) deliverImport(0);
+                }
+            }
+        }catch(Throwable e){
+            Toast.makeText(this, "导入失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** 把 content:// 复制到缓存目录（网页没法直接读 content://，只能中转） */
+    private boolean stashImport(Uri uri, String mime) {
+        try{
+            if(importFile != null){ try{ importFile.delete(); }catch(Throwable ignored){ } importFile = null; }
+            pendingText = null;
+            String name = importNameOf(uri);
+            String ext = name.contains(".") ? name.substring(name.lastIndexOf('.')) : "";
+            importToken = Long.toHexString(System.currentTimeMillis())
+                    + Integer.toHexString((int) (Math.random() * 0xFFFF));
+            importFile = new File(getCacheDir(), "imp_" + importToken + ext);
+            try(InputStream in = getContentResolver().openInputStream(uri);
+                java.io.FileOutputStream out = new java.io.FileOutputStream(importFile)){
+                byte[] buf = new byte[16384];
+                int n;
+                while((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+            importName = name;
+            importMime = mime != null ? mime : "";
+            return true;
+        }catch(Throwable e){
+            importFile = null;
+            Toast.makeText(this, "读不到这个文件：" + e.getMessage(), Toast.LENGTH_LONG).show();
+            return false;
+        }
+    }
+
+    private String importNameOf(Uri uri){
+        try{
+            Cursor c = getContentResolver().query(uri, null, null, null, null);
+            if(c != null){
+                try{
+                    int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if(i >= 0 && c.moveToFirst() && c.getString(i) != null) return c.getString(i);
+                }finally{ c.close(); }
+            }
+        }catch(Throwable ignored){ }
+        String p = uri.getLastPathSegment();
+        return (p != null && p.contains(".")) ? p : "导入文件";
+    }
+
+    /** 递给网页。冷启动时页面还没加载好，appReceiveImport 不存在——1.5 秒一次重试 */
+    private void deliverImport(final int attempt) {
+        if(importFile == null && pendingText == null) return;
+        try{
+            org.json.JSONObject meta = new org.json.JSONObject();
+            if(pendingText != null){
+                meta.put("text", pendingText);
+            }else{
+                meta.put("url", HOME + "__android_import__/" + importToken + "/"
+                        + URLEncoder.encode(importName, "UTF-8"));
+                meta.put("mime", importMime);
+                meta.put("name", importName);
+            }
+            final String js = "(function(){try{if(window.appReceiveImport){appReceiveImport("
+                    + meta.toString() + ");return 1}return 0}catch(e){return 0}})()";
+            web.evaluateJavascript(js, v -> {
+                if("1".equals(v)){
+                    pendingText = null;          // 文件留着：网页还要 fetch 它
+                    Toast.makeText(MainActivity.this,
+                            "正在导入：" + (importName.isEmpty() ? "分享内容" : importName),
+                            Toast.LENGTH_SHORT).show();
+                }else if(attempt < 12){
+                    new Handler(Looper.getMainLooper()).postDelayed(
+                            () -> deliverImport(attempt + 1), 1500);
+                }
+            });
+        }catch(Throwable ignored){ }
     }
 
     @Override
@@ -507,6 +648,46 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void printHtml(final String name, final String html) {
             new Handler(Looper.getMainLooper()).post(() -> startPrint(name, html));
+        }
+
+        /** 手写笔震动：优先驱动笔自己的马达。Android 12 起，带马达的手写笔
+            会作为一个带 Vibrator 的输入设备出现（InputDevice.getVibratorManager），
+            第三方笔记软件的"笔尖反馈"走的就是这条路；笔没马达或系统太老时
+            回落到平板机身的 navigator.vibrate。 */
+        @JavascriptInterface
+        public void penHaptic(final int ms) {
+            Vibrator v = penVibrator();
+            try{
+                if(v != null){
+                    v.vibrate(VibrationEffect.createOneShot(Math.max(1, ms),
+                            VibrationEffect.DEFAULT_AMPLITUDE));
+                    return;
+                }
+            }catch(Throwable ignored){ }
+            try{
+                Vibrator dv = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if(dv != null) dv.vibrate(VibrationEffect.createOneShot(Math.max(1, ms),
+                        VibrationEffect.DEFAULT_AMPLITUDE));
+            }catch(Throwable ignored){ }
+        }
+
+        /** 扫输入设备找手写笔的震动马达。笔可能还没配对，每次没找到都重扫
+            （getDeviceIds 很便宜，落笔频率下无感）。 */
+        private Vibrator penVibrator() {
+            if(Build.VERSION.SDK_INT < 31) return null;
+            try{
+                for(int id : InputDevice.getDeviceIds()){
+                    InputDevice d = InputDevice.getDevice(id);
+                    if(d == null) continue;
+                    if((d.getSources() & InputDevice.SOURCE_STYLUS) == InputDevice.SOURCE_STYLUS){
+                        VibratorManager vm = d.getVibratorManager();
+                        if(vm == null) continue;
+                        Vibrator v = vm.getDefaultVibrator();
+                        if(v != null && v.hasVibrator()) return v;
+                    }
+                }
+            }catch(Throwable ignored){ }
+            return null;
         }
 
         /** 立刻弹一条系统通知（「试一下」按钮 / 网页开着时到点提醒）。

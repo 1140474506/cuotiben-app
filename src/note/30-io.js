@@ -17,9 +17,11 @@ function noteImportPDF(){
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "application/pdf";
-  input.onchange = async ()=>{
-    const file = input.files[0];
-    if(!file) return;
+  input.onchange = async ()=>{ if(input.files[0]) noteImportPDFFromFile(input.files[0]); };
+}
+/* 真正的导入逻辑：接收任何 File（文件选择器 / 安卓「用错了没打开」共用） */
+async function noteImportPDFFromFile(file){
+  {
     toast("正在解析 PDF…");
     try{
       await loadPDFJS();
