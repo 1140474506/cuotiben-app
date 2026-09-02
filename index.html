@@ -458,6 +458,20 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
+/* 「打开方式」目的地选择卡片 */
+.nb-dest-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.nb-dest{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:13px 12px; border:2px solid var(--line); border-radius:12px; background:var(--card);
+  cursor:pointer; font:inherit; text-align:left}
+.nb-dest .ic{font-size:24px}
+.nb-dest b{font-size:14px}
+.nb-dest .d{font-size:11.5px; color:var(--muted); line-height:1.5}
+.nb-dest.on{border-color:var(--blue); background:var(--blue-weak)}
+.nb-dest .rec{position:absolute; top:8px; right:8px; font-size:10px; font-weight:bold;
+  color:var(--blue); background:var(--blue-weak); border:1px solid var(--blue);
+  border-radius:99px; padding:1px 7px}
+.nb-dest{position:relative}
+
 /* 套索截图预览图 */
 .ink-shot{width:100%; display:block; border:2px solid var(--line); border-radius:10px;
   background:#fff; box-shadow:3px 3px 0 var(--line-soft)}
@@ -490,7 +504,7 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -889,6 +903,7 @@ B. 1
         <b>蜡笔小新</b><span class="d">暖橙蜡笔 · 元气满满</span>
       </button>
     </div>
+    <div class="muted" id="penInfoLine" hidden style="margin-top:10px;font-size:12px"></div>
   </div>
   <div class="card">
     <h2>科目</h2>
@@ -1670,16 +1685,27 @@ async function noteClose(){
   if(!$("tab-note") || !$("tab-note").hidden) renderNotes();
 }
 /* ---- PDF 导入 / 导出 ---- */
+/* pdf.js 双 CDN：jsdelivr 国内通常可达（应用的 KaTeX 就走它），
+   cdnjs 在部分网络环境下会失败——之前「导入失败」的另一半原因 */
 function loadPDFJS(){
-  if(window.pdfjsLib) return Promise.resolve();
-  return new Promise((res, rej)=>{
+  if(window.pdfjsLib){
+    try{ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }catch(e){}
+    return Promise.resolve();
+  }
+  const tryCdn = urls => new Promise((res, rej)=>{
     const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-    s.onload = ()=>{ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(); };
-    s.onerror = ()=> rej(new Error("PDF 组件加载失败，请检查网络"));
+    s.src = urls[0];
+    s.onload = ()=>{ try{ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }catch(e){} res(); };
+    s.onerror = ()=>{ s.remove(); urls.length > 1 ? tryCdn(urls.slice(1)).then(res, rej)
+                                                  : rej(new Error("PDF 组件加载失败，请检查网络")); };
     document.head.appendChild(s);
   });
+  return tryCdn([
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+  ]);
 }
+const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 /* 导入 PDF：每页栅格化成图片存 nb_files，页面记录 bgData=fileId。
    旧版的问题：页对象存 width/height（引擎读的是 w/h，导致整本笔记用错纸尺寸），
    且解析过程中列表 innerHTML 被来回改，出任何异常列表就永远停在「正在解析」。
@@ -1827,12 +1853,13 @@ function inkJPEGBytes(dataURL){
   return arr;
 }
 /* ---- 系统打开方式 / 分享目标 ----
-   安卓壳把「用错了没打开」的文件和分享内容递到这里（appReceiveImport）：
-   · PDF → 直接进练习册导入流程（解析成可写的笔记页）
-   · 图片 → 进录入表单，点一下「AI 智能识别」就能入库
-   · 分享的文字 → 直接填进题干
-   · Word/Excel → 解析不了，弹窗指两条路（另存 PDF / 截图分享）
-   文件本体经壳的 __android_import__ 拦截通道取回（同源 fetch，无大小限制）。 */
+   安卓壳把「用错了没打开」的文件和分享内容递到这里（appReceiveImport）。
+   收到后先问你要放哪（笔记本 / 错题录入 / 练习册），再落到对应流程：
+   · PDF  →  📓 新笔记本（解析成可写页，默认）/ 📚 上传练习册（解析勾选入库）
+   · 图片 →  ✍️ 录入错题（进表单 + AI 识别，默认）/ 📓 新笔记本（图片当一页，可写）
+   · 文字 →  直接填进题干（不需要选）
+   · Word/Excel → 解析不了，指两条路
+   文件本体经壳的 __android_import__ 通道取回（同源 fetch；SW 对这条路径放行）。 */
 window.appReceiveImport = async function(meta){
   try{
     if(meta && meta.text){
@@ -1848,22 +1875,38 @@ window.appReceiveImport = async function(meta){
       || /\.(docx?|xlsx?|csv)$/i.test(name);
     if(isWordExcel){
       /* 指路弹窗不需要下载文件，先拦下来 */
-      alert(`收到《${name}》，这类文件还解析不了。
-
-两个办法：
-① 在 WPS/Office 里「另存为 PDF」，再用错了没打开 PDF
-② 截图后分享给错了没——图片可以直接 AI 识别进错题库`);
+      alert(`收到《${name}》，这类文件还解析不了。\n\n两个办法：\n① 在 WPS/Office 里「另存为 PDF」，再用错了没打开 PDF\n② 截图后分享给错了没——图片可以直接 AI 识别进错题库`);
       return;
     }
-    const blob = await (await fetch(meta.url, {cache: "no-store"})).blob();
-    if((meta.mime === "application/pdf") || (/\.pdf$/i.test(name))){
-      switchTab("note");
-      await noteImportPDFFromFile(new File([blob], name, {type: "application/pdf"}));
+    const isPdf = meta.mime === "application/pdf" || /\.pdf$/i.test(name);
+    const isImg = !isPdf && ((meta.mime || "").startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name));
+    /* 先选目的地，选中了再去取文件/跑流程 */
+    const dest = await chooseImportDest(isPdf, name);
+    if(!dest) return;
+    if(dest === "book"){
+      switchTab("book");
+      const blob = await (await fetch(meta.url, {cache: "no-store"})).blob();
+      let last = 0;
+      await bookImportFromFile(new File([blob], name, {type: "application/pdf"}),
+        t=>{ const now = Date.now(); if(now - last > 1500 || t.startsWith("✅")){ last = now; toast(t); } });
+      renderBooks(); refreshBookSel();
       return;
     }
-    if((meta.mime || "").startsWith("image/")){
+    if(dest === "note"){
+      if(isPdf){
+        switchTab("note");
+        const blob = await (await fetch(meta.url, {cache: "no-store"})).blob();
+        await noteImportPDFFromFile(new File([blob], name, {type: "application/pdf"}));
+      }else{
+        const blob = await (await fetch(meta.url, {cache: "no-store"})).blob();
+        await noteImportImageFile(blob, name);
+      }
+      return;
+    }
+    if(dest === "add" && isImg){
       switchTab("add");
-      const img = await compressImage(new File([blob], name, {type: meta.mime}));
+      const blob = await (await fetch(meta.url, {cache: "no-store"})).blob();
+      const img = await compressImage(new File([blob], name, {type: meta.mime || "image/png"}));
       pendingImgs.push(img);
       renderImgs();
       toast("图片已放进录入表单，点「✨ AI 智能识别」就能入库");
@@ -1874,6 +1917,73 @@ window.appReceiveImport = async function(meta){
     toast("导入失败：" + (e.message || e));
   }
 };
+
+/* 目的地选择弹窗：PDF 和图片各给两个合理去处，点选后走对应流程 */
+function chooseImportDest(isPdf, name){
+  return new Promise(res=>{
+    const mask = document.createElement("div");
+    mask.className = "nb-new-mask";
+    const opts = isPdf
+      ? [{k:"note", ic:"📓", t:"放进笔记本",  d:"每页变可写纸，直接手写批注"},
+         {k:"book", ic:"📚", t:"上传到练习册", d:"解析全书，勾选题目批量入库"}]
+      : [{k:"add",  ic:"✍️", t:"录入错题",    d:"进录入表单，AI 识别入库"},
+         {k:"note", ic:"📓", t:"放进笔记本",  d:"图片当一页纸，直接在上面写"}];
+    mask.innerHTML = `
+      <div class="card nb-new" style="width:min(420px,92vw)">
+        <h3 style="margin:0 0 6px">《${esc(name)}》放哪？</h3>
+        <div class="muted" style="font-size:12.5px;margin-bottom:12px">按文件类型给你挑好了去处：</div>
+        <div class="nb-dest-grid">
+          ${opts.map((o,i)=>`
+          <button class="nb-dest${i===0?" on":""}" data-k="${o.k}">
+            <span class="ic">${o.ic}</span><b>${o.t}</b>${i===0?'<span class="rec">推荐</span>':""}<span class="d">${o.d}</span>
+          </button>`).join("")}
+        </div>
+        <div class="row" style="margin-top:12px;justify-content:flex-end">
+          <button class="btn ghost small" data-k="__cancel">取消</button>
+        </div>
+      </div>`;
+    document.body.appendChild(mask);
+    /* 两个去处，点卡片即选定——不需要先选中再确认的两步 */
+    mask.addEventListener("click", e=>{
+      const d = e.target.closest(".nb-dest");
+      if(d){ mask.remove(); res(d.dataset.k); return; }
+      if(e.target.closest('[data-k="__cancel"]')){ mask.remove(); res(null); }
+    });
+  });
+}
+
+/* 图片 → 笔记本：图片存进 nb_files 当一页的背景，直接可写 */
+async function noteImportImageFile(blob, name){
+  toast("正在生成笔记…");
+  const dataUrl = await new Promise(r=>{
+    const fr = new FileReader();
+    fr.onload = ()=> r(fr.result);
+    fr.readAsDataURL(blob);
+  });
+  const dim = await new Promise(r=>{
+    const img = new Image();
+    img.onload = ()=> r([img.naturalWidth, img.naturalHeight]);
+    img.onerror = ()=> r([1000, 1414]);
+    img.src = dataUrl;
+  });
+  const fileId = "file_" + Date.now();
+  await dbNbFilePut(fileId, dataUrl);
+  const n = {
+    id: "nb_" + Date.now(),
+    title: name.replace(/\.(png|jpe?g|webp|gif|bmp)$/i, "") || "图片笔记",
+    cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
+    createdAt: Date.now(), updatedAt: Date.now(),
+    pages: [{
+      id: "pg_1", bgType: "image", bgData: fileId,
+      w: dim[0], h: dim[1],
+      layers: [{id: "l1", name: "笔记图层", visible: true, strokes: []}]
+    }]
+  };
+  await dbNotePut(n);
+  switchTab("note");
+  renderNotes();
+  toast("已放进笔记本，点开就能写");
+}
 
 
 /* ---------------- IndexedDB ---------------- */
@@ -6717,6 +6827,33 @@ async function appUpdateCheck(){
   }catch(e){ /* 版本文件拉不到就当没有更新 */ }
 }
 appUpdateCheck();
+/* 笔震动诊断（仅 APP）：告诉我们这台设备的笔有没有暴露震动马达 */
+(function(){
+  const b = window.AndroidBridge;
+  if(!b || !b.penInfo) return;
+  try{
+    const info = JSON.parse(b.penInfo());
+    const el = $("penInfoLine");
+    if(!el) return;
+    el.hidden = false;
+    el.textContent = info.penFound
+      ? (info.penHasVibe ? "🖊 笔震动：已连上「" + info.penName + "」，落笔会震笔" : "🖊 笔震动：检测到笔（" + info.penName + "），但它没有向系统开放震动马达，回落为平板震动")
+      : "🖊 笔震动：还没检测到手写笔（写一笔再回来看这行会更新）";
+  }catch(e){}
+})();
+setInterval(function(){
+  const b = window.AndroidBridge;
+  if(!b || !b.penInfo) return;
+  try{
+    const info = JSON.parse(b.penInfo());
+    const el = $("penInfoLine");
+    if(el && info.penFound){
+      el.hidden = false;
+      el.textContent = info.penHasVibe ? "🖊 笔震动：已连上「" + info.penName + "」，落笔会震笔"
+        : "🖊 笔震动：检测到笔（" + info.penName + "），但它没有向系统开放震动马达，回落为平板震动";
+    }
+  }catch(e){}
+}, 15000);
 
 /* ---------------- 返回键统一入口 ----------------
    平板的物理/手势返回键经壳（MainActivity）调到这里。逻辑 = 「关掉最上层
@@ -6831,7 +6968,7 @@ $("btnTest").addEventListener("click", async ()=>{
 
 /* ---------------- 练习册：PDF 上传与本地解析 ---------------- */
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
 /* 解析时顺手记下每一行的 y 坐标（lines：[文本下标, y, 文本下标, y, …]）。
    有了它才能把某一道题从原页里裁成一小条图发给模型核对——
@@ -6863,40 +7000,44 @@ async function parsePDF(file, onProgress){
   return {pdfBytes: buf, pageCount: doc.numPages, pages, lines, ph, textPages};
 }
 
+/* 练习册导入的核心逻辑（文件选择器 和 安卓「打开方式」共用）。
+   progress(text) 回调报告进度。 */
+async function bookImportFromFile(f, progress){
+  await loadPDFJS();
+  const r = await parsePDF(f, (i,n,tp)=> progress(`⏳ 解析中… ${i}/${n} 页（含文字 ${tp} 页）`));
+  const name = f.name.replace(/\.pdf$/i,"");
+  /* 同一本书在另一台设备传过、文字层已经同步过来了（只是缺 PDF 原文件）：
+     这时应该把原文件补到那条记录上，而不是新建一条。 */
+  const same = (await dbBooksAll()).find(b=> b.name===name && b.pageCount===r.pageCount);
+  if(same){
+    same.pdf = r.pdfBytes; same.pages = r.pages; same.textPages = r.textPages;
+    same.lines = r.lines; same.ph = r.ph;
+    await dbBookPut(same);
+    scanCache.delete(same.id);
+    progress(`✅ 已把 PDF 原文件补到已同步的《${name}》上（${r.pageCount} 页）`);
+    return;
+  }
+  await dbBookPut({
+    id: crypto.randomUUID(),
+    name,
+    addedAt: Date.now(),
+    pageCount: r.pageCount,
+    textPages: r.textPages,
+    offset: 0,                        // 书页码 = PDF页码 + offset（封面偏移，可改）
+    pages: r.pages,                   // 文本层缓存
+    lines: r.lines,                   // 每行 y 坐标，裁题目图用
+    ph: r.ph,                         // 每页高度（PDF 单位）
+    pdf: r.pdfBytes                   // 原始 PDF，扫描页按需渲染
+  });
+  progress(`✅ 完成：${r.pageCount} 页，其中 ${r.textPages} 页有文字层` +
+    (r.textPages===0 ? "（纯扫描版，提取时会用视觉模型）" : ""));
+}
 $("bookInput").addEventListener("change", async e=>{
   const f = e.target.files[0]; if(!f) return;
   const st = $("bookParseStatus");
-  if(!window.pdfjsLib){ st.textContent = "❌ PDF 组件加载失败，请联网后刷新页面"; e.target.value=""; return; }
   st.textContent = "⏳ 解析中…";
   try{
-    const r = await parsePDF(f, (i,n,tp)=> st.textContent = `⏳ 解析中… ${i}/${n} 页（含文字 ${tp} 页）`);
-    const name = f.name.replace(/\.pdf$/i,"");
-    /* 同一本书在另一台设备传过、文字层已经同步过来了（只是缺 PDF 原文件）：
-       这时应该把原文件补到那条记录上，而不是新建一条。
-       新建的话两台设备会各留一本同名册，勾选面板里分不清哪本是哪本。 */
-    const same = (await dbBooksAll()).find(b=> b.name===name && b.pageCount===r.pageCount);
-    if(same){
-      same.pdf = r.pdfBytes; same.pages = r.pages; same.textPages = r.textPages;
-      same.lines = r.lines; same.ph = r.ph;
-      await dbBookPut(same);
-      st.textContent = `✅ 已把 PDF 原文件补到已同步的《${name}》上（${r.pageCount} 页），现在这台设备也能看图识别了`;
-      renderBooks(); refreshBookSel(); scanCache.delete(same.id);
-      e.target.value=""; return;
-    }
-    await dbBookPut({
-      id: crypto.randomUUID(),
-      name,
-      addedAt: Date.now(),
-      pageCount: r.pageCount,
-      textPages: r.textPages,
-      offset: 0,                        // 书页码 = PDF页码 + offset（封面偏移，可改）
-      pages: r.pages,                   // 文本层缓存
-      lines: r.lines,                   // 每行 y 坐标，裁题目图用
-      ph: r.ph,                         // 每页高度（PDF 单位）
-      pdf: r.pdfBytes                   // 原始 PDF，扫描页按需渲染
-    });
-    st.textContent = `✅ 完成：${r.pageCount} 页，其中 ${r.textPages} 页有文字层` +
-      (r.textPages===0 ? "（纯扫描版，提取时会用视觉模型）" : "");
+    await bookImportFromFile(f, t=> st.textContent = t);
     renderBooks(); refreshBookSel();
   }catch(err){ st.textContent = "❌ 解析失败："+err.message; }
   e.target.value="";

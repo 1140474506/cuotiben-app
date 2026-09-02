@@ -109,6 +109,20 @@
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
 
+/* 「打开方式」目的地选择卡片 */
+.nb-dest-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.nb-dest{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:13px 12px; border:2px solid var(--line); border-radius:12px; background:var(--card);
+  cursor:pointer; font:inherit; text-align:left}
+.nb-dest .ic{font-size:24px}
+.nb-dest b{font-size:14px}
+.nb-dest .d{font-size:11.5px; color:var(--muted); line-height:1.5}
+.nb-dest.on{border-color:var(--blue); background:var(--blue-weak)}
+.nb-dest .rec{position:absolute; top:8px; right:8px; font-size:10px; font-weight:bold;
+  color:var(--blue); background:var(--blue-weak); border:1px solid var(--blue);
+  border-radius:99px; padding:1px 7px}
+.nb-dest{position:relative}
+
 /* 套索截图预览图 */
 .ink-shot{width:100%; display:block; border:2px solid var(--line); border-radius:10px;
   background:#fff; box-shadow:3px 3px 0 var(--line-soft)}

@@ -680,14 +680,43 @@ public class MainActivity extends Activity {
                     InputDevice d = InputDevice.getDevice(id);
                     if(d == null) continue;
                     if((d.getSources() & InputDevice.SOURCE_STYLUS) == InputDevice.SOURCE_STYLUS){
-                        VibratorManager vm = d.getVibratorManager();
-                        if(vm == null) continue;
-                        Vibrator v = vm.getDefaultVibrator();
+                        Vibrator v = null;
+                        try{
+                            VibratorManager vm = d.getVibratorManager();
+                            if(vm != null) v = vm.getDefaultVibrator();
+                        }catch(Throwable ignored){ }
+                        if(v == null){ try{ v = d.getVibrator(); }catch(Throwable ignored){ } }
                         if(v != null && v.hasVibrator()) return v;
                     }
                 }
             }catch(Throwable ignored){ }
             return null;
+        }
+
+        /** 笔震动诊断：这台设备的手写笔有没有向系统暴露震动马达。
+            排查用——设置页会显示这行的结论。 */
+        @JavascriptInterface
+        public String penInfo() {
+            try{
+                org.json.JSONObject out = new org.json.JSONObject();
+                out.put("penFound", false).put("penHasVibe", false).put("penName", "");
+                for(int id : InputDevice.getDeviceIds()){
+                    InputDevice d = InputDevice.getDevice(id);
+                    if(d == null) continue;
+                    if((d.getSources() & InputDevice.SOURCE_STYLUS) != InputDevice.SOURCE_STYLUS) continue;
+                    out.put("penFound", true);
+                    out.put("penName", d.getName());
+                    Vibrator v = null;
+                    try{
+                        VibratorManager vm = d.getVibratorManager();
+                        if(vm != null) v = vm.getDefaultVibrator();
+                    }catch(Throwable ignored){ }
+                    if(v == null){ try{ v = d.getVibrator(); }catch(Throwable ignored){ } }
+                    if(v != null && v.hasVibrator()) out.put("penHasVibe", true);
+                    break;
+                }
+                return out.toString();
+            }catch(Throwable e){ return "{}"; }
         }
 
         /** 立刻弹一条系统通知（「试一下」按钮 / 网页开着时到点提醒）。

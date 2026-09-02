@@ -350,7 +350,7 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -733,6 +733,7 @@ B. 1
         <b>蜡笔小新</b><span class="d">暖橙蜡笔 · 元气满满</span>
       </button>
     </div>
+    <div class="muted" id="penInfoLine" hidden style="margin-top:10px;font-size:12px"></div>
   </div>
   <div class="card">
     <h2>科目</h2>
@@ -3612,6 +3613,33 @@ async function appUpdateCheck(){
   }catch(e){ /* 版本文件拉不到就当没有更新 */ }
 }
 appUpdateCheck();
+/* 笔震动诊断（仅 APP）：告诉我们这台设备的笔有没有暴露震动马达 */
+(function(){
+  const b = window.AndroidBridge;
+  if(!b || !b.penInfo) return;
+  try{
+    const info = JSON.parse(b.penInfo());
+    const el = $("penInfoLine");
+    if(!el) return;
+    el.hidden = false;
+    el.textContent = info.penFound
+      ? (info.penHasVibe ? "🖊 笔震动：已连上「" + info.penName + "」，落笔会震笔" : "🖊 笔震动：检测到笔（" + info.penName + "），但它没有向系统开放震动马达，回落为平板震动")
+      : "🖊 笔震动：还没检测到手写笔（写一笔再回来看这行会更新）";
+  }catch(e){}
+})();
+setInterval(function(){
+  const b = window.AndroidBridge;
+  if(!b || !b.penInfo) return;
+  try{
+    const info = JSON.parse(b.penInfo());
+    const el = $("penInfoLine");
+    if(el && info.penFound){
+      el.hidden = false;
+      el.textContent = info.penHasVibe ? "🖊 笔震动：已连上「" + info.penName + "」，落笔会震笔"
+        : "🖊 笔震动：检测到笔（" + info.penName + "），但它没有向系统开放震动马达，回落为平板震动";
+    }
+  }catch(e){}
+}, 15000);
 
 /* ---------------- 返回键统一入口 ----------------
    平板的物理/手势返回键经壳（MainActivity）调到这里。逻辑 = 「关掉最上层
@@ -3726,7 +3754,7 @@ $("btnTest").addEventListener("click", async ()=>{
 
 /* ---------------- 练习册：PDF 上传与本地解析 ---------------- */
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
 /* 解析时顺手记下每一行的 y 坐标（lines：[文本下标, y, 文本下标, y, …]）。
    有了它才能把某一道题从原页里裁成一小条图发给模型核对——
@@ -3758,40 +3786,44 @@ async function parsePDF(file, onProgress){
   return {pdfBytes: buf, pageCount: doc.numPages, pages, lines, ph, textPages};
 }
 
+/* 练习册导入的核心逻辑（文件选择器 和 安卓「打开方式」共用）。
+   progress(text) 回调报告进度。 */
+async function bookImportFromFile(f, progress){
+  await loadPDFJS();
+  const r = await parsePDF(f, (i,n,tp)=> progress(`⏳ 解析中… ${i}/${n} 页（含文字 ${tp} 页）`));
+  const name = f.name.replace(/\.pdf$/i,"");
+  /* 同一本书在另一台设备传过、文字层已经同步过来了（只是缺 PDF 原文件）：
+     这时应该把原文件补到那条记录上，而不是新建一条。 */
+  const same = (await dbBooksAll()).find(b=> b.name===name && b.pageCount===r.pageCount);
+  if(same){
+    same.pdf = r.pdfBytes; same.pages = r.pages; same.textPages = r.textPages;
+    same.lines = r.lines; same.ph = r.ph;
+    await dbBookPut(same);
+    scanCache.delete(same.id);
+    progress(`✅ 已把 PDF 原文件补到已同步的《${name}》上（${r.pageCount} 页）`);
+    return;
+  }
+  await dbBookPut({
+    id: crypto.randomUUID(),
+    name,
+    addedAt: Date.now(),
+    pageCount: r.pageCount,
+    textPages: r.textPages,
+    offset: 0,                        // 书页码 = PDF页码 + offset（封面偏移，可改）
+    pages: r.pages,                   // 文本层缓存
+    lines: r.lines,                   // 每行 y 坐标，裁题目图用
+    ph: r.ph,                         // 每页高度（PDF 单位）
+    pdf: r.pdfBytes                   // 原始 PDF，扫描页按需渲染
+  });
+  progress(`✅ 完成：${r.pageCount} 页，其中 ${r.textPages} 页有文字层` +
+    (r.textPages===0 ? "（纯扫描版，提取时会用视觉模型）" : ""));
+}
 $("bookInput").addEventListener("change", async e=>{
   const f = e.target.files[0]; if(!f) return;
   const st = $("bookParseStatus");
-  if(!window.pdfjsLib){ st.textContent = "❌ PDF 组件加载失败，请联网后刷新页面"; e.target.value=""; return; }
   st.textContent = "⏳ 解析中…";
   try{
-    const r = await parsePDF(f, (i,n,tp)=> st.textContent = `⏳ 解析中… ${i}/${n} 页（含文字 ${tp} 页）`);
-    const name = f.name.replace(/\.pdf$/i,"");
-    /* 同一本书在另一台设备传过、文字层已经同步过来了（只是缺 PDF 原文件）：
-       这时应该把原文件补到那条记录上，而不是新建一条。
-       新建的话两台设备会各留一本同名册，勾选面板里分不清哪本是哪本。 */
-    const same = (await dbBooksAll()).find(b=> b.name===name && b.pageCount===r.pageCount);
-    if(same){
-      same.pdf = r.pdfBytes; same.pages = r.pages; same.textPages = r.textPages;
-      same.lines = r.lines; same.ph = r.ph;
-      await dbBookPut(same);
-      st.textContent = `✅ 已把 PDF 原文件补到已同步的《${name}》上（${r.pageCount} 页），现在这台设备也能看图识别了`;
-      renderBooks(); refreshBookSel(); scanCache.delete(same.id);
-      e.target.value=""; return;
-    }
-    await dbBookPut({
-      id: crypto.randomUUID(),
-      name,
-      addedAt: Date.now(),
-      pageCount: r.pageCount,
-      textPages: r.textPages,
-      offset: 0,                        // 书页码 = PDF页码 + offset（封面偏移，可改）
-      pages: r.pages,                   // 文本层缓存
-      lines: r.lines,                   // 每行 y 坐标，裁题目图用
-      ph: r.ph,                         // 每页高度（PDF 单位）
-      pdf: r.pdfBytes                   // 原始 PDF，扫描页按需渲染
-    });
-    st.textContent = `✅ 完成：${r.pageCount} 页，其中 ${r.textPages} 页有文字层` +
-      (r.textPages===0 ? "（纯扫描版，提取时会用视觉模型）" : "");
+    await bookImportFromFile(f, t=> st.textContent = t);
     renderBooks(); refreshBookSel();
   }catch(err){ st.textContent = "❌ 解析失败："+err.message; }
   e.target.value="";

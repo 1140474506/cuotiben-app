@@ -1,14 +1,25 @@
 /* ---- PDF 导入 / 导出 ---- */
+/* pdf.js 双 CDN：jsdelivr 国内通常可达（应用的 KaTeX 就走它），
+   cdnjs 在部分网络环境下会失败——之前「导入失败」的另一半原因 */
 function loadPDFJS(){
-  if(window.pdfjsLib) return Promise.resolve();
-  return new Promise((res, rej)=>{
+  if(window.pdfjsLib){
+    try{ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }catch(e){}
+    return Promise.resolve();
+  }
+  const tryCdn = urls => new Promise((res, rej)=>{
     const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-    s.onload = ()=>{ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(); };
-    s.onerror = ()=> rej(new Error("PDF 组件加载失败，请检查网络"));
+    s.src = urls[0];
+    s.onload = ()=>{ try{ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }catch(e){} res(); };
+    s.onerror = ()=>{ s.remove(); urls.length > 1 ? tryCdn(urls.slice(1)).then(res, rej)
+                                                  : rej(new Error("PDF 组件加载失败，请检查网络")); };
     document.head.appendChild(s);
   });
+  return tryCdn([
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+  ]);
 }
+const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 /* 导入 PDF：每页栅格化成图片存 nb_files，页面记录 bgData=fileId。
    旧版的问题：页对象存 width/height（引擎读的是 w/h，导致整本笔记用错纸尺寸），
    且解析过程中列表 innerHTML 被来回改，出任何异常列表就永远停在「正在解析」。
