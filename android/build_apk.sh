@@ -36,7 +36,7 @@ echo "== 3/6 javac（lambda 需要 core-lambda-stubs）=="
   -classpath "$PF/android.jar" \
   -d "$OUT/classes" \
   "$OUT/gen/com/cuotiben/app/R.java" \
-  "$APP/src/com/cuotiben/app/MainActivity.java"
+  $(find "$APP/src" -name "*.java")
 
 echo "== 4/6 d8 打 dex =="
 "$JAVA" -cp "$BT/lib/d8.jar" com.android.tools.r8.D8 --release \

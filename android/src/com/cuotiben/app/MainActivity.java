@@ -51,6 +51,7 @@ public class MainActivity extends Activity {
     private static final String HOME_HOST = "1140474506.github.io";
     private static final int REQ_FILE = 41;
     private static final int REQ_PERM = 42;
+    private static final int REQ_NOTIF = 43;
 
     private WebView web;
     private ValueCallback<Uri[]> fileCb;
@@ -63,6 +64,8 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         web = new WebView(this);
         setContentView(web);
+        // 每次打开都把提醒闹钟排一遍（时间没变就是刷新，重启后被清空的也补上）
+        RemindUtil.scheduleNext(this);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -331,6 +334,48 @@ public class MainActivity extends Activity {
         public void saveFailed() {
             new Handler(Looper.getMainLooper()).post(() ->
                     Toast.makeText(MainActivity.this, "导出失败，请重试", Toast.LENGTH_SHORT).show());
+        }
+
+        /** 立刻弹一条系统通知（「试一下」按钮 / 网页开着时到点提醒）。
+            名字刻意不叫 notify：和 Object.notify() 撞名在部分设备上有诡异行为。 */
+        @JavascriptInterface
+        public void notif(final String id, final String title, final String body) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (!notifOkOrAsk()) return;
+                RemindUtil.post(MainActivity.this, title, body);
+            });
+        }
+
+        /** 网页设置页保存提醒时调用：存时间 + 排/撤闹钟（APP 关着也会到点响）。 */
+        @JavascriptInterface
+        public void scheduleReminder(final int on, final String hhmm) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                RemindUtil.prefs(MainActivity.this).edit()
+                        .putBoolean("on", on == 1)
+                        .putString("time", hhmm == null ? "20:00" : hhmm)
+                        .apply();
+                RemindUtil.cancel(MainActivity.this);
+                if (on == 1) {
+                    if (notifOkOrAsk()) {
+                        RemindUtil.scheduleNext(MainActivity.this);
+                        Toast.makeText(MainActivity.this,
+                                "已设置每天 " + hhmm + " 提醒", Toast.LENGTH_SHORT).show();
+                    } else {
+                        // 没通知权限也先把闹钟排上（权限随时可以再开），但不能不吭声
+                        RemindUtil.scheduleNext(MainActivity.this);
+                    }
+                }
+            });
+        }
+
+        /** 通知权限：13+ 要运行时申请。没权限返回 false（并顺手续上申请）。 */
+        private boolean notifOkOrAsk() {
+            if (Build.VERSION.SDK_INT < 33) return true;
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED) return true;
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
+            Toast.makeText(MainActivity.this, "请允许通知权限，提醒才能弹出来", Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 }

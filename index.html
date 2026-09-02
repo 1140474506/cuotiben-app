@@ -743,6 +743,21 @@ B. 1
     <button class="btn ghost small" id="btnSaveIntervals" style="margin-top:10px">保存间隔</button>
   </div>
   <div class="card">
+    <h2>⏰ 复盘提醒</h2>
+    <div class="muted" style="margin-bottom:10px">
+      每天到点提醒你「该复盘了」。<b>平板 APP 里是系统级通知</b>——APP 关着、屏幕锁着也会响；
+      网页端需要允许浏览器通知，且页面开着才会弹。提醒时间是<b>本机设置</b>，
+      手机定 8 点、平板定 20 点互不影响。
+    </div>
+    <div class="row" style="flex-wrap:wrap">
+      <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="cfgRemindOn" style="width:auto;margin:0"> 每天提醒我</label>
+      <input type="time" id="cfgRemindTime" value="20:00" style="width:auto">
+      <button class="btn small" id="btnSaveRemind">保存提醒</button>
+      <button class="btn ghost small" id="btnTestRemind" title="弹一条看看效果">🔔 试一下</button>
+    </div>
+    <div class="muted" id="remindMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>科目</h2>
     <div class="muted" style="margin-bottom:10px">
       直接改名字或删减；<b>改名会同步更新已有错题的科目</b>，删除的科目下必须没有题
@@ -5899,6 +5914,8 @@ function fillCfgInputs(){
   setInputSafe("cfgBase", cfg.base); setInputSafe("cfgKey", cfg.key);
   setInputSafe("cfgModel", cfg.model); setInputSafe("cfgTextModel", cfg.textModel||"");
   setInputSafe("cfgIntervals", cfg.intervals.join(", "));
+  $("cfgRemindOn").checked = !!cfg.remindOn;
+  setInputSafe("cfgRemindTime", cfg.remindTime || "20:00");
   setInputSafe("cfgGhToken", cfg.ghToken || "");
   setInputSafe("cfgRepo", cfg.repo || "");
   $("cfgSyncMode").value = cfg.syncMode || "off";
@@ -5924,6 +5941,93 @@ $("btnSaveIntervals").addEventListener("click", ()=>{
   if(!$("tab-review").hidden) renderReview();     // 「第 x/N 轮」的分母变了
   toast(syncReady() ? "间隔已保存，正在同步到其它设备…" : "间隔已保存");
 });
+
+/* ---------------- 复盘提醒 ----------------
+   两层机制，能覆盖哪层用哪层：
+     · 平板 APP（有 AndroidBridge）：保存时把时间交给原生 AlarmManager，
+       APP 关着也会到点弹系统通知；
+     · 纯网页：页面开着时每 30 秒对一次表（复用同步心跳的定时器），
+       过了设定时刻且今天还没响过 → Web Notification；没权限就标题闪烁 + toast。
+   remindOn/remindTime 只进本机 localStorage（cfg 的同步签名不含它们），
+   提醒是设备习惯，不该跟着云端走。 */
+function remindSchedule(){
+  const b = window.AndroidBridge;
+  if(b && b.scheduleReminder){
+    try{ b.scheduleReminder(cfg.remindOn ? 1 : 0, cfg.remindTime || "20:00"); }catch(e){}
+  }
+}
+function remindFire(test){
+  const body = test ? "这是一条测试提醒，效果就是这样 ✅" : "今天的错题该复盘了，别让它们过夜 📚";
+  const b = window.AndroidBridge;
+  if(b && b.notif){
+    try{ b.notif(test ? "test" : "remind", "错了没 ⏰", body); return; }catch(e){}
+  }
+  if(typeof Notification !== "undefined" && Notification.permission === "granted"){
+    try{
+      const n = new Notification("错了没 ⏰", {body, tag: "cuotiben-remind"});
+      n.onclick = ()=>{ window.focus(); n.close(); };
+      return;
+    }catch(e){}
+  }
+  /* 拿不到通知权限的兜底：toast + 标题闪烁（切到别的标签页也看得见）+ 震动 */
+  toast("⏰ " + body);
+  if(navigator.vibrate) try{ navigator.vibrate([200, 100, 200]); }catch(e){}
+  const old = document.title;
+  let flip = 0;
+  const t = setInterval(()=>{
+    document.title = (flip++ % 2) ? "⏰ 该复盘了！" : old;
+    if(flip > 24){ clearInterval(t); document.title = old; }
+  }, 800);
+}
+function remindCheck(){
+  if(!cfg.remindOn) return;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(cfg.remindTime || "20:00");
+  if(!m) return;
+  const now = new Date();
+  const today = now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
+  let last = "";
+  try{ last = localStorage.getItem("cyt_remindLast") || ""; }catch(e){}
+  if(last === today) return;                     // 今天已经响过
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1], +m[2]);
+  if(now < target) return;                       // 还没到点
+  try{ localStorage.setItem("cyt_remindLast", today); }catch(e){}
+  remindFire(false);
+}
+function remindStatus(){
+  const el = $("remindMsg");
+  if(!el) return;
+  if(!cfg.remindOn){ el.textContent = "提醒已关闭。"; return; }
+  if(window.AndroidBridge && window.AndroidBridge.notif)
+    el.textContent = `✅ 已开启：每天 ${cfg.remindTime} 系统通知提醒（APP 关着也会响）`;
+  else if(typeof Notification !== "undefined" && Notification.permission === "granted")
+    el.textContent = `✅ 已开启：每天 ${cfg.remindTime} 浏览器通知提醒（页面开着才会弹）`;
+  else
+    el.textContent = `⚠ 已开启但浏览器通知未授权，只会页面内提示。点「试一下」可申请授权。`;
+}
+$("btnSaveRemind").addEventListener("click", async ()=>{
+  cfg.remindOn = $("cfgRemindOn").checked;
+  cfg.remindTime = $("cfgRemindTime").value || "20:00";
+  saveCfg();
+  if(cfg.remindOn && typeof Notification !== "undefined" && Notification.permission === "default"){
+    try{ await Notification.requestPermission(); }catch(e){}
+  }
+  remindSchedule();
+  remindStatus();
+  toast(cfg.remindOn ? `已开启：每天 ${cfg.remindTime} 提醒` : "提醒已关闭");
+});
+$("btnTestRemind").addEventListener("click", async ()=>{
+  if(typeof Notification !== "undefined" && Notification.permission === "default"){
+    try{ await Notification.requestPermission(); }catch(e){}
+  }
+  remindFire(true);
+  remindStatus();
+});
+/* 到点检查挂到同步心跳的同一个 30 秒定时器上（见 syncTickTimer），
+   切回前台时也补一次——早上挂着页面出门、晚上回来的场景。 */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible") remindCheck();
+});
+remindSchedule(); remindStatus();
 
 /* ---------------- 科目管理 ----------------
    每行一个科目：输入框改名字（data-orig 记着原名），✕ 删行。
@@ -6991,7 +7095,7 @@ openDB().then(async ()=>{
 /* 心跳：30 秒醒一次，绝大多数时候只是几个整数比较后立刻返回。
    真正的拉取间隔由 syncTick 里的 PULL_EVERY 决定；胶囊上的"几分钟前"
    也顺带刷新，不另开一个定时器。 */
-syncTickTimer = setInterval(()=>{ syncTick(); updateSyncPill(); }, 30000);
+syncTickTimer = setInterval(()=>{ syncTick(); updateSyncPill(); remindCheck(); }, 30000);
 // 切回这个标签页时补一次，平板和电脑交替用的场景最常见
 document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "visible"){
