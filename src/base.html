@@ -98,9 +98,9 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
   .theme-pick .d{font-size:11.5px; color:var(--muted)}
   .tp-preview{width:100%; height:62px; border-radius:10px; border:1.5px solid var(--line-soft); overflow:hidden; position:relative}
   .tp-jiangan{background:linear-gradient(135deg,#eef3f7 55%,#dde9f3 55%)}
-  .tp-jiangan::after{content:"☁️"; position:absolute; right:8px; bottom:4px; font-size:22px; opacity:.75}
+  .tp-doodle{position:absolute; right:8px; bottom:6px; width:26px; height:26px; opacity:.8; color:#98a8b8}
   .tp-shin{background:linear-gradient(135deg,#fdf3e2 55%,#fde8dc 55%)}
-  .tp-shin::after{content:"🌻"; position:absolute; right:7px; bottom:3px; font-size:20px; opacity:.9}
+
   .tp-shin .mini-shin{position:absolute; left:8px; bottom:2px; width:44px; height:44px}
   *{box-sizing:border-box; margin:0; padding:0}
   html{-webkit-text-size-adjust:100%}
@@ -276,7 +276,9 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
   .shotbox img{width:100%; display:block; border-radius:4px}
   
   .empty{text-align:center; color:var(--muted); padding:44px 0; font-size:14px; font-weight:bold; position:relative}
-  .empty::before { content: "( ˘ω˘ ) ｽﾔｧ..."; display:block; font-size:32px; margin-bottom:15px; color:var(--line); font-weight:normal}
+  .empty::before { content:""; display:block; width:66px; height:44px; margin:0 auto 14px;
+    border-radius:44px 44px 36px 36px; border:2.5px solid var(--line); opacity:.6;
+    border-bottom-style:dashed}
   
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--text); color:#fff;
     padding:10px 20px; border-radius:var(--radius-sm); font-size:14px; z-index:200; opacity:0; pointer-events:none;
@@ -381,13 +383,13 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
   </svg></span>
   <nav id="nav">
     <button data-tab="add" class="active"><i>📝</i><em>录入</em></button>
-    <button data-tab="review"><i>📅</i><em>复盘</em><span class="badge" id="dueBadge" style="display:none">0</span></button>
-    <button data-tab="practice"><i>🏋️</i><em>练习</em></button>
-    <button data-tab="bank"><i>📚</i><em>题库</em></button>
-    <button data-tab="note"><i>📓</i><em>笔记</em></button>
-    <button data-tab="book"><i>📖</i><em>练习册</em></button>
-    <button data-tab="stats"><i>📊</i><em>统计</em></button>
-    <button data-tab="settings"><i>⚙️</i><em>设置</em></button>
+    <button data-tab="review"><i></i><em>复盘</em><span class="badge" id="dueBadge" style="display:none">0</span></button>
+    <button data-tab="practice"><i></i><em>练习</em></button>
+    <button data-tab="bank"><i></i><em>题库</em></button>
+    <button data-tab="note"><i></i><em>笔记</em></button>
+    <button data-tab="book"><i></i><em>练习册</em></button>
+    <button data-tab="stats"><i></i><em>统计</em></button>
+    <button data-tab="settings"><i></i><em>设置</em></button>
   </nav>
   <div class="hdr-right">
     <div id="queuePill" hidden><span class="spin"></span><span id="queuePillTxt"></span></div>
@@ -406,7 +408,7 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
       <div style="flex:1"><label>页码+题号（单题急用）</label><input type="text" id="refInput" placeholder="如 P35-3 或 128"></div>
     </div>
     <div class="row" style="margin-top:12px">
-      <button class="btn" id="btnBrowseBook" style="flex:2">📋 浏览并勾选导入</button>
+      <button class="btn" id="btnBrowseBook" style="flex:2">浏览并勾选导入</button>
       <button class="btn ghost" id="btnExtract">🔍 只提取这一题并填到下面</button>
     </div>
     <div class="muted" id="extractStatus" style="margin-top:8px"></div>
@@ -457,13 +459,13 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
     <h2>② 粘贴单题截图（要当场核对就用这个）</h2>
     <div class="muted" style="margin-bottom:10px">直接 <b>Ctrl+V</b> 粘贴截图，或拖拽图片到这里，或点击选择文件。支持一次一张，贴好后再拍解析一起贴。</div>
     <div id="dropZone">
-      <div style="font-size:34px">📷</div>
+      <div style="font-size:34px"></div>
       <div>点击选择 / 拖拽图片 / Ctrl+V 粘贴截图</div>
       <div id="dzImgs"></div>
     </div>
     <input type="file" id="fileInput" accept="image/*" multiple hidden>
     <div class="row" style="margin-top:14px">
-      <button class="btn" id="btnAI" style="flex:2">✨ AI 智能识别并填写</button>
+      <button class="btn" id="btnAI" style="flex:2">AI 智能识别并填写</button>
       <button class="btn ghost" id="btnClearImgs">清空图片</button>
     </div>
     <div class="muted" id="aiStatus" style="margin-top:8px"></div>
@@ -477,7 +479,7 @@ if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
       不确定格式就先点「复制提示词」，把那段话连同题目一起发给那个 AI。
     </div>
     <div class="row" style="margin-bottom:10px">
-      <button class="btn ghost small" id="btnCopyPrompt">📋 复制提示词</button>
+      <button class="btn ghost small" id="btnCopyPrompt">复制提示词</button>
       <button class="btn ghost small" id="btnBulkDemo">看格式示例</button>
     </div>
     <textarea id="bulkPaste" class="tall" placeholder="题干:
@@ -534,7 +536,7 @@ B. 1
     <label>解析 / 正确思路</label>
     <textarea id="fAnalysis" placeholder="解题思路（AI 识别后自动填入）"></textarea>
     <div class="preview-box" id="fPreview" hidden>
-      <div class="plabel">📐 公式预览（保存后就是这个样子；标红的地方是公式语法有问题，可以在上面改）</div>
+      <div class="plabel">公式预览（保存后就是这个样子；标红的地方是公式语法有问题，可以在上面改）</div>
       <div id="fPreviewBody"></div>
     </div>
     <label>错因（只有你知道当时怎么错的，AI 不代填；没想好可以留空，之后在题库里点一下补）</label>
@@ -562,7 +564,7 @@ B. 1
       <div style="max-width:220px"><label>本次复习科目</label>
         <select id="reviewSubject"></select>
       </div>
-      <button class="btn ghost small" id="btnReviewPrint" style="align-self:flex-end">🖨️ 打印今日复盘</button>
+      <button class="btn ghost small" id="btnReviewPrint" style="align-self:flex-end">打印今日复盘</button>
     </div>
     <div class="muted" id="reviewSummary"></div>
     <div id="progressBar"><div style="width:0%"></div></div>
@@ -608,7 +610,7 @@ B. 1
       <div><label>搜索</label><input type="text" id="filterText" placeholder="题干 / 章节关键词"></div>
     </div>
     <div class="row" style="margin-top:12px">
-      <button class="btn ghost small" id="btnPrint">🖨️ 打印练习纸</button>
+      <button class="btn ghost small" id="btnPrint">打印练习纸</button>
       <button class="btn ghost small" id="btnExport">导出备份</button>
       <button class="btn ghost small" id="btnImport">导入备份</button>
       <input type="file" id="importInput" accept=".json" hidden>
@@ -659,7 +661,7 @@ B. 1
     <div class="muted">汇总最近 7 天的错题与复盘记录，AI 帮你分析薄弱点并给出针对性建议。</div>
     <div class="row" style="margin-top:12px">
       <button class="btn" id="btnReport">生成周复盘报告</button>
-      <button class="btn ghost" id="btnCheatsheet">📋 生成考前「高频错因清单」</button>
+      <button class="btn ghost" id="btnCheatsheet">生成考前「高频错因清单」</button>
     </div>
     <div class="report" id="reportOut" hidden></div>
   </div>
@@ -739,8 +741,8 @@ B. 1
     <h2>ℹ️ 版本与更新</h2>
     <div class="muted" id="verInfo" style="margin-bottom:10px">版本信息加载中…</div>
     <div class="row" style="flex-wrap:wrap">
-      <button class="btn small" id="btnCheckUpdate">🔄 检查更新</button>
-      <button class="btn ghost small" id="btnReloadApp" title="网页内容有新版本时刷新一下就换新">↻ 刷新页面</button>
+      <button class="btn small" id="btnCheckUpdate">检查更新</button>
+      <button class="btn ghost small" id="btnReloadApp" title="网页内容有新版本时刷新一下就换新">刷新页面</button>
     </div>
     <div class="muted" id="updateMsg" style="margin-top:8px"></div>
   </div>
@@ -812,7 +814,7 @@ B. 1
         效果和上面那份带配置的副本一样，而且手机上不用打那一长串 Token。
       </div>
       <div class="row">
-        <button class="btn ghost" id="btnCopyCfgCode">📋 复制本机配置码</button>
+        <button class="btn ghost" id="btnCopyCfgCode">复制本机配置码</button>
         <button class="btn ghost" id="btnApplyCfgCode">应用配置码</button>
       </div>
       <input type="text" id="cfgCode" placeholder="在别的设备上把配置码粘到这里，再点「应用配置码」" style="margin-top:8px">
@@ -876,7 +878,7 @@ B. 1
 <!-- 打印练习纸：选题 → 参数 → 生成，一个面板走完，关掉就走，不在题库上留任何状态 -->
 <div class="modal-bg" id="printModal" hidden>
   <div class="sheet" style="width:min(640px,94vw); display:flex; flex-direction:column; gap:0">
-    <h3>🖨️ 打印练习纸</h3>
+    <h3>打印练习纸</h3>
     <div class="row" style="margin-bottom:10px; align-items:center">
       <span class="muted" id="pmCount" style="flex:1"></span>
       <button class="btn ghost small" id="pmAll">全选</button>
@@ -908,9 +910,9 @@ B. 1
       background:var(--green-weak); border-radius:8px; color:var(--green)">
       <div id="pmDoneTxt"></div>
       <div class="row" style="margin-top:8px">
-        <button class="btn small" id="btnDoPrint">🖨️ 打印 / 存为 PDF</button>
-        <button class="btn ghost small" id="btnDlPrint">⬇️ 存成 HTML</button>
-        <button class="btn ghost small" id="btnDoPrintInk" style="color:var(--purple);border-color:var(--purple)">✏️ 沉浸笔记</button>
+        <button class="btn small" id="btnDoPrint">打印 / 存为 PDF</button>
+        <button class="btn ghost small" id="btnDlPrint">存成 HTML</button>
+        <button class="btn ghost small" id="btnDoPrintInk" style="color:var(--purple);border-color:var(--purple)">沉浸笔记</button>
       </div>
     </div>
     <div class="actions">
@@ -1033,6 +1035,56 @@ function appDownload(blob, name, mime){
   a.click();
   setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
 }
+/* ---------------- SVG 图标系统 ----------------
+   统一的细线描边图标（24 视窗、1.8 描边、currentColor），替代界面里的 emoji——
+   emoji 各设备字形不一、彩色描边和界面风格脱节。icon("pen") 内联进 HTML，
+   大小由 CSS 控制（.ic-svg），颜色自动跟随文字/按钮状态。 */
+const ICONS = {
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  folderPlus: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10.5v5M9.5 13h5"/>',
+  note: '<path d="M5.5 3.5h13v17h-13z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9.5 12h5M9.5 16h5"/>',
+  image: '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17.5l4.5-4.5 3.5 3.5 3-3 4 4"/>',
+  book: '<path d="M5 4.5h5.5v15H6.5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M19 4.5h-5.5v15h4a1.5 1.5 0 0 0 1.5-1.5z"/>',
+  infinity: '<path d="M8.3 8.7c-2.1 0-3.6 1.4-3.6 3.3s1.5 3.3 3.6 3.3c3.4 0 4-6.6 7.4-6.6 2.1 0 3.6 1.4 3.6 3.3s-1.5 3.3-3.6 3.3c-3.4 0-4-6.6-7.4-6.6z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M7 7l1 13h8l1-13"/><path d="M10.5 11v5M13.5 11v5"/>',
+  move: '<path d="M5 12h14M13 6l6 6-6 6" transform=""/>' ,
+  pen: '<path d="M4.5 19.5l1-4L16 5l3 3-10.5 10.5z"/><path d="M14 7l3 3"/>',
+  marker: '<path d="M4.5 20h6M13.5 4.5l6 6-6.5 6.5-6-6z"/>',
+  line: '<path d="M5 19L19 5"/><path d="M4.5 15.5l4 4M15.5 4.5l4 4"/>',
+  lasso: '<path d="M12 4.5a7.5 7.5 0 1 0 2.6 14.5" stroke-dasharray="3 2.4"/><path d="M14 19a1.8 1.8 0 1 0 .1 0z"/>',
+  eraser: '<path d="M8.5 20H20"/><path d="M6 14.5l8-8 5 5-8 8H7.5z"/>',
+  hand: '<path d="M8 13V6.2a1.4 1.4 0 0 1 2.8 0V12M10.8 12V4.6a1.4 1.4 0 0 1 2.8 0V12M13.6 12V6a1.4 1.4 0 0 1 2.8 0v7.5"/><path d="M16.4 13.5v-2a1.4 1.4 0 0 1 2.8 0v3A6.5 6.5 0 0 1 12.7 21h-.9a6.5 6.5 0 0 1-5.5-3L4 14.4a1.5 1.5 0 0 1 2.4-1.7L8 14.5"/>',
+  undo: '<path d="M8 5.5L4 9.5l4 4"/><path d="M4 9.5h9.5a6 6 0 0 1 6 6v1"/>',
+  redo: '<path d="M16 5.5l4 4-4 4"/><path d="M20 9.5h-9.5a6 6 0 0 0-6 6v1"/>',
+  chevronRight: '<path d="M9.5 6l6 6-6 6"/>',
+  chevronLeft: '<path d="M14.5 6l-6 6 6 6"/>',
+  chevronDown: '<path d="M6 9.5l6 6 6-6"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  save: '<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 19.5h14"/>',
+  crop: '<path d="M7 3.5v13.5h13.5"/><path d="M3.5 7H17v13.5"/>',
+  upload: '<path d="M12 15.5v-10M8 9.5l4-4 4 4"/><path d="M5 19.5h14"/>',
+  print: '<path d="M7 8V4h10v4"/><path d="M7 16H4V8h16v8h-3"/><path d="M7 13h10v7H7z"/>',
+  layers: '<path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8z"/><path d="M3.5 13l8.5 4.5 8.5-4.5"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  expand: '<path d="M4.5 9.5v-5h5M14.5 4.5h5v5M19.5 14.5v5h-5M9.5 19.5h-5v-5"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 3.5V8h-4.5"/>',
+  check: '<path d="M5 13l4 4 10-10"/>',
+  sparkle: '<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/>',
+  vibrate: '<rect x="9" y="4" width="6" height="16" rx="1.8"/><path d="M5.5 9v6M18.5 9v6"/>',
+  shape: '<circle cx="12" cy="12" r="7.5"/><path d="M4.5 12h15"/>',
+  zoomIn: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8.5v5M8.5 11h5"/>',
+  zoomOut: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5"/>',
+  back: '<path d="M10 6l-6 6 6 6"/><path d="M4.5 12h15"/>',
+  cloud: '<path d="M7 17.5a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.7 1.2A3.5 3.5 0 0 1 17 17.5z"/>',
+  flower: '<circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V4.5M12 14.2v5.3M9.8 12H4.5M14.2 12h5.3M10.4 10.4L6.7 6.7M13.6 13.6l3.7 3.7M13.6 10.4l3.7-3.7M10.4 13.6l-3.7 3.7"/>'
+};
+function icon(name, cls){
+  return '<svg class="ic-svg' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || "") + "</svg>";
+}
+
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
 function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 /* 早期版本存的题可能没有 nextReview，直接 new Date(undefined) 会印出 NaN/NaN。
@@ -1698,8 +1750,8 @@ function updatePreview(){
     (an? `<div style="margin-top:8px;white-space:pre-wrap"><b>💡 解析：</b>${mathHTML(an)}</div>` : "");
   const bad = $("fPreviewBody").querySelectorAll(".mathfail").length;
   $("fPreview").querySelector(".plabel").textContent = bad
-    ? `📐 公式预览 — 有 ${bad} 处公式语法不对（标红），鼠标悬停看原因，可在上面直接改`
-    : "📐 公式预览（保存后就是这个样子）";
+    ? `公式预览 — 有 ${bad} 处公式语法不对（标红），鼠标悬停看原因，可在上面直接改`
+    : "公式预览（保存后就是这个样子）";
 }
 ["fQuestion","fOptions","fAnalysis","fCorrectAns"].forEach(id=>
   $(id).addEventListener("input", ()=>{ clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 250); }));
@@ -1846,7 +1898,7 @@ function answerCard(q, hidden){
       ${q.myAns?`<b>我的答案：${mathHTMLSmart(q.myAns)}</b>`:""}
       <b>✅ 正确答案：${q.correctAns? mathHTMLSmart(q.correctAns) : "（见解析）"}</b>
       <b>💡 解析：</b><div id="an-${q.id}">${q.analysis? mathHTML(q.analysis)
-        : `<button class="btn ghost small" onclick="genAnalysis('${q.id}')">✨ 生成解析</button>
+        : `<button class="btn ghost small" onclick="genAnalysis('${q.id}')">${icon("sparkle")} 生成解析</button>
            <span class="muted" style="font-size:12.5px">（导入时不生成解析，导入才能几秒一题；这里点一次就存下来）</span>`}</div>
       ${q.chapter?`<b>📌 知识点：${esc(q.chapter)}</b>`:""}
     </div>
@@ -1916,7 +1968,7 @@ window.pickReason = (ev, id)=>{
     // 同一道题可能同时出现在复盘/重练/题库里，全部就地改掉
     document.querySelectorAll(`[data-rc="${id}"]`).forEach(el=>{
       el.className = "chip reason-" + v;
-      el.textContent = v ? REASONS[v] : "✎ 暂未确认错因";
+      el.textContent = v ? REASONS[v] : "暂未确认错因";
       el.title = v ? "点击修改错因" : "点击填写错因";
     });
     toast(v ? "错因记为「"+REASONS[v]+"」" : "已标回暂未确认");
@@ -1939,8 +1991,8 @@ function reviewCardHTML(q){
     ${(q.images||[]).map((src,i)=>`<img src="${src}" loading="lazy" onclick="showQImg('${q.id}',${i})">`).join("")}
     ${answerCard(q, true)}
     <div class="row" style="margin-top:10px">
-      <button class="btn ghost small" onclick="inkToggle('${q.id}')">✍️ 手写演算</button>
-      ${(q.history||[]).some(h=>h.ink&&h.ink.length)?`<button class="btn ghost small" onclick="inkView('${q.id}')">👀 上次手写</button>`:""}
+      <button class="btn ghost small" onclick="inkToggle('${q.id}')">${icon("pen")} 手写演算</button>
+      ${(q.history||[]).some(h=>h.ink&&h.ink.length)?`<button class="btn ghost small" onclick="inkView('${q.id}')">${icon("image")} 上次手写</button>`:""}
     </div>
     <div id="ink-${q.id}"></div>
     <div class="grade">
@@ -1988,7 +2040,7 @@ window.grade = async (id, g)=>{
   await dbPut(q);
   const el = $("rv-"+id);
   if(q.masteredAt){
-    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--green)">🎉 恭喜，这题已掌握，移出复习计划！</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--green)">恭喜，这题已掌握，移出复习计划！</div>`;
   }else{
     el.innerHTML = `<div style="text-align:center;padding:20px" class="muted">已记录，下次复习：${fmtDate(q.nextReview)}</div>`;
   }
@@ -2029,7 +2081,7 @@ function pullTodayHTML(all, sub){
     && q.createdAt > Date.now()-86400000);
   if(!pool.length) return "";
   return `<div style="margin-top:12px">
-    <button class="btn ghost small" onclick="pullToday(${sub?JSON.stringify(sub):"null"})">⚡ 把今天录入的 ${pool.length} 题提前拿来复盘</button>
+    <button class="btn ghost small" onclick="pullToday(${sub?JSON.stringify(sub):"null"})">把今天录入的 ${pool.length} 题提前拿来复盘</button>
   </div>`;
 }
 window.pullToday = async sub => {
@@ -2137,7 +2189,7 @@ function renderPracticeQuestion(){
       <div id="ink-p"></div>
       <div class="muted" style="margin-top:12px">先自己做一遍（纸、手写板都行），再点下面看答案。</div>
       <div class="actions">
-        <button class="btn ghost" id="btnRevealAns">👀 显示答案与解析</button>
+        <button class="btn ghost" id="btnRevealAns">显示答案与解析</button>
         <button class="btn ghost" id="btnVariant">🎲 让 AI 出一道变式题</button>
       </div>
       <div id="pVariant" class="muted" style="margin-top:10px"></div>
@@ -2209,7 +2261,7 @@ function endPractice(early){
   const s = pSession; if(!s) return;
   const done = s.right + s.fuzzy + s.wrong;
   document.querySelector("#pProgressBar div").style.width = "100%";
-  $("pProgress").textContent = early ? "本次练习已结束" : "本次练习完成 🎉";
+  $("pProgress").textContent = early ? "本次练习已结束" : "本次练习完成！";
   const rate = done ? Math.round(s.right/done*100) : 0;
   $("pQuestionArea").innerHTML = `
     <div class="stat-grid" style="margin-top:16px">
@@ -2239,14 +2291,14 @@ function bankCardHTML(q){
         ${q.chapter?`<span class="chip">${esc(q.chapter)}</span>`:""}
         ${q.source?`<span class="chip">📖 ${esc(q.source)}</span>`:""}
         ${q.suspect?`<span class="chip" style="background:var(--amber-weak);color:var(--amber)" title="转录时选项数或置信度对不上，建议对一眼原图">⚠ 建议核对</span>`:""}
-        ${(q.needsImg && !(q.images||[]).length)?`<span class="chip" style="background:var(--blue-weak);color:var(--blue)" title="AI 标记此题带图，点右侧「📷 补图」把图补上">📷 待补图</span>`:""}
+        ${(q.needsImg && !(q.images||[]).length)?`<span class="chip" style="background:var(--blue-weak);color:var(--blue)" title="AI 标记此题带图，点右侧「📷 补图」把图补上">${icon("image")} 待补图</span>`:""}
         ${q.masteredAt?`<span class="chip mastered">✅ 已掌握 ${fmtDate(q.masteredAt)}</span>`:`<span class="chip">下次复盘 ${fmtDate(q.nextReview)}</span>`}
         ${(!q.masteredAt && q.nextReview > Date.now())?`<button class="btn ghost small" onclick="reviewToday('${q.id}')" title="把这道题提前到现在就复盘">⚡ 今日</button>`:""}
       </div>
       <div>
         ${q.shot?`<button class="btn ghost small" onclick="showShot('${q.id}')">看原题图</button>`:""}
-        <button class="btn ghost small" onclick="inkTry('${q.id}')">✍️ 写写看</button>
-        <button class="btn ghost small" onclick="addQImg('${q.id}')" title="给这道题补一张图（外部 AI 导入的带图题走这里）">📷 补图</button>
+        <button class="btn ghost small" onclick="inkTry('${q.id}')">${icon("pen")} 写写看</button>
+        <button class="btn ghost small" onclick="addQImg('${q.id}')" title="给这道题补一张图（外部 AI 导入的带图题走这里）">${icon("image")} 补图</button>
         <button class="btn ghost small" onclick="editQ('${q.id}')">编辑</button>
         <button class="btn ghost small" style="color:var(--red)" onclick="delQ('${q.id}')">删除</button>
       </div>
@@ -2637,7 +2689,9 @@ function buildPrintSheet(list){
   .shotbox img{width:100%; display:block; border-radius:4px}
   
   .empty{text-align:center; color:var(--muted); padding:44px 0; font-size:14px; font-weight:bold; position:relative}
-  .empty::before { content: "( ˘ω˘ ) ｽﾔｧ..."; display:block; font-size:32px; margin-bottom:15px; color:var(--line); font-weight:normal}
+  .empty::before { content:""; display:block; width:66px; height:44px; margin:0 auto 14px;
+    border-radius:44px 44px 36px 36px; border:2.5px solid var(--line); opacity:.6;
+    border-bottom-style:dashed}
   
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--text); color:#fff;
     padding:10px 20px; border-radius:var(--radius-sm); font-size:14px; z-index:200; opacity:0; pointer-events:none;
@@ -2801,7 +2855,7 @@ function buildPrintSheet(list){
 }
 
 /* ---- 打印面板：选题 → 参数 → 生成，一个弹窗走完 ----
-   题库工具栏只有一个「🖨️ 打印练习纸」入口，点开弹窗：
+   题库工具栏只有一个「打印练习纸」入口，点开弹窗：
    当前筛选的题全部列出（默认全选），勾掉不要的，选答题区行数，生成。
    关闭即清理，题库卡片上不再出现任何和打印有关的控件。
 
@@ -3236,7 +3290,7 @@ $("btnBulkParse").addEventListener("click", async ()=>{
       </button>
     </div>
     ${fixText?`<div class="row" style="margin-top:8px">
-      <button class="btn ghost" id="btnBulkFix" style="flex:2">📋 复制修改要求（发给那个 AI 让它改）</button>
+      <button class="btn ghost" id="btnBulkFix" style="flex:2">复制修改要求（发给那个 AI 让它改）</button>
     </div>`:""}
     <div class="muted" style="margin-top:6px">
       ${flagged?`其中 ${flagged} 题结构体检没过，会带上「⚠ 建议核对」标记 —— 照样能导入，之后在「题库」把状态筛成「⚠ 建议核对」逐个改，改完标记自动消失。<br>`:""}
@@ -3587,6 +3641,17 @@ function applyTheme(t){
   document.querySelectorAll("#themeGrid .theme-pick").forEach(b=>
     b.classList.toggle("on", (b.dataset.theme || "") === (cfg.theme || "")));
 }
+(function(){
+  const g = $("themeGrid");
+  if(!g) return;
+  const add = ()=>{
+    const j = g.querySelector(".tp-jiangan"), sh = g.querySelector(".tp-shin");
+    if(j && !j.querySelector(".ic-svg")) j.insertAdjacentHTML("beforeend", icon("cloud", "tp-doodle"));
+    if(sh && !sh.querySelector(".ic-svg")) sh.insertAdjacentHTML("beforeend", icon("flower", "tp-doodle"));
+  };
+  add();
+  new MutationObserver(add).observe(g, {childList:true});
+})();
 $("themeGrid").addEventListener("click", e=>{
   const b = e.target.closest(".theme-pick");
   if(!b) return;
@@ -3650,6 +3715,9 @@ async function checkUpdateUI(){
   if(msg) msg.textContent = parts.join("；");
 }
 function fillVerInfo(){
+  const bt = $("btnCheckUpdate"), br = $("btnReloadApp");
+  if(bt && !bt.querySelector(".ic-svg")) bt.innerHTML = icon("refresh") + " 检查更新";
+  if(br && !br.querySelector(".ic-svg")) br.innerHTML = icon("save") + " 刷新页面";
   const el = $("verInfo");
   if(!el) return;
   const b = window.AndroidBridge;
@@ -3661,9 +3729,30 @@ function fillVerInfo(){
   }
   el.textContent = t;
 }
-$("btnCheckUpdate").addEventListener("click", ()=>{ fillVerInfo(); checkUpdateUI(); });
+$("btnCheckUpdate").addEventListener("click", ()=>{ fillVerInfo();
+ checkUpdateUI(); });
 $("btnReloadApp").addEventListener("click", ()=> location.reload());
 fillVerInfo();
+/* 底部导航/零散按钮的装饰 emoji 换成 SVG（静态 HTML 用不了模板函数，一处收口） */
+(function(){
+  const NAV_IC = {add:"pen", review:"refresh", practice:"check", bank:"grid", book:"book", note:"folder", stats:"zoomIn", settings:"shape"};
+  document.querySelectorAll("nav button[data-tab]").forEach(b=>{
+    const ic = NAV_IC[b.dataset.tab];
+    const i = b.querySelector("i");
+    if(ic && i && !i.querySelector(".ic-svg")) i.innerHTML = icon(ic, "lg");
+  });
+  const BTN_IC = {"btnBrowseBook":"copy", "btnAI":"sparkle", "btnCopyPrompt":"copy",
+    "btnReviewPrint":"print", "btnPrint":"print", "btnCheatsheet":"copy", "btnCopyCfgCode":"copy",
+    "btnDoPrint":"print", "btnDlPrint":"save", "btnDoPrintInk":"pen", "btnRevealAns":"image",
+    "btnBulkFix":"copy", "btnCheckUpdate":"refresh", "btnReloadApp":"save"};
+  for(const [id, ic] of Object.entries(BTN_IC)){
+    const b = document.getElementById(id);
+    if(b && !b.querySelector(".ic-svg")) b.insertAdjacentHTML("afterbegin", icon(ic) + " ");
+  }
+  /* 批量导入区的大图标 */
+  const dz = document.querySelector("#dropZone > div[style*='34px']");
+  if(dz) dz.innerHTML = icon("image");
+})();
 appUpdateCheck();
 /* 笔震动诊断（仅 APP）：告诉我们这台设备的笔有没有暴露震动马达 */
 (function(){

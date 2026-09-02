@@ -70,10 +70,10 @@ function chooseImportDest(isPdf, name){
     const mask = document.createElement("div");
     mask.className = "nb-new-mask";
     const opts = isPdf
-      ? [{k:"note", ic:"📓", t:"放进笔记本",  d:"每页变可写纸，直接手写批注"},
-         {k:"book", ic:"📚", t:"上传到练习册", d:"解析全书，勾选题目批量入库"}]
-      : [{k:"add",  ic:"✍️", t:"录入错题",    d:"进录入表单，AI 识别入库"},
-         {k:"note", ic:"📓", t:"放进笔记本",  d:"图片当一页纸，直接在上面写"}];
+      ? [{k:"note", ic:"note", t:"放进笔记本",  d:"每页变可写纸，直接手写批注"},
+         {k:"book", ic:"book", t:"上传到练习册", d:"解析全书，勾选题目批量入库"}]
+      : [{k:"add",  ic:"pen",  t:"录入错题",    d:"进录入表单，AI 识别入库"},
+         {k:"note", ic:"note", t:"放进笔记本",  d:"图片当一页纸，直接在上面写"}];
     mask.innerHTML = `
       <div class="card nb-new" style="width:min(420px,92vw)">
         <h3 style="margin:0 0 6px">《${esc(name)}》放哪？</h3>
@@ -81,7 +81,7 @@ function chooseImportDest(isPdf, name){
         <div class="nb-dest-grid">
           ${opts.map((o,i)=>`
           <button class="nb-dest${i===0?" on":""}" data-k="${o.k}">
-            <span class="ic">${o.ic}</span><b>${o.t}</b>${i===0?'<span class="rec">推荐</span>':""}<span class="d">${o.d}</span>
+            <span class="ic">${icon(o.ic, "lg")}</span><b>${o.t}</b>${i===0?'<span class="rec">推荐</span>':""}<span class="d">${o.d}</span>
           </button>`).join("")}
         </div>
         <div class="row" style="margin-top:12px;justify-content:flex-end">

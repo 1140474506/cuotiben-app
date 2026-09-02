@@ -234,13 +234,13 @@ async function inkLassoPreview(){
   mask.className = "nb-new-mask";
   mask.innerHTML = `
     <div class="card nb-new" style="width:min(430px,92vw)">
-      <h3 style="margin:0 0 10px">截好了，长这样 👇</h3>
+      <h3 style="margin:0 0 10px">截好了，长这样</h3>
       <img class="ink-shot" src="${cv.toDataURL("image/jpeg", 0.85)}" alt="截图预览">
       <div class="row" style="margin-top:12px;justify-content:center;flex-wrap:wrap">
-        <button class="btn small" data-act="bank">📤 AI 入题库</button>
-        <button class="btn ghost small" data-act="copy">📋 复制</button>
-        <button class="btn ghost small" data-act="save">💾 保存</button>
-        <button class="btn ghost small" data-act="close">✕ 关闭</button>
+        <button class="btn small" data-act="bank">${icon("sparkle")} AI 入题库</button>
+        <button class="btn ghost small" data-act="copy">${icon("copy")} 复制</button>
+        <button class="btn ghost small" data-act="save">${icon("save")} 保存</button>
+        <button class="btn ghost small" data-act="close">${icon("close")} 关闭</button>
       </div>
     </div>`;
   document.body.appendChild(mask);
@@ -299,7 +299,7 @@ async function inkLassoToBank(cv){
   pendingImgs = [img];
   renderImgs();
   if(cfg.base && cfg.key){
-    toast("🤖 AI 识别中…");
+    toast("AI 识别中…");
     try{
       const j = await recognizeImages([img]);
       if(j) fillForm(j);

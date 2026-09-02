@@ -38,6 +38,10 @@
 .ink-range::-moz-range-thumb{width:22px; height:22px; border-radius:50%;
   background:#fff; border:2.5px solid var(--blue)}
 .ink-rv{min-width:2.4em; text-align:center; font-variant-numeric:tabular-nums}
+/* 翻页拉条：更细更紧凑，拖到哪页跳哪页 */
+.ink-pager{flex:0 1 150px; min-width:90px; max-width:220px; height:28px}
+.ink-pager::-webkit-slider-runnable-track{height:6px}
+.ink-pager::-webkit-slider-thumb{width:20px; height:20px; margin-top:-8px}
 .ink-prev{display:block; flex:none; width:34px; background:var(--text); border-radius:99px}
 
 /* 全屏容器：顶栏 + 纸面 + 底部工具栏，纸面吃掉剩下的全部高度 */
@@ -108,6 +112,11 @@
 .nb-style b{font-size:14px}
 .nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
 .nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
+
+/* SVG 图标（icon()）：默认跟文字等大，按钮里略大一点；颜色 currentColor */
+.ic-svg{width:1.05em; height:1.05em; vertical-align:-0.16em; flex:none; display:inline-block}
+button .ic-svg{width:1.15em; height:1.15em; vertical-align:-0.2em}
+.ic-svg.lg{width:22px; height:22px}
 
 /* 「打开方式」目的地选择卡片 */
 .nb-dest-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}

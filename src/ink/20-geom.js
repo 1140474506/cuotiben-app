@@ -139,6 +139,12 @@ function inkZoomLabel(){
 }
 function inkPageLabel(){
   const st = inkPad; if(!st) return;
-  document.querySelectorAll(".ink-page").forEach(el=>
-    el.textContent = `${st.page+1}/${st.pages.length}页`);
+  document.querySelectorAll(".ink-page").forEach(el=>{
+    if(el.classList.contains("btn")) el.textContent = `${st.page+1}/${st.pages.length}页`;
+  });
+  /* 拉条跟着视野当前页走（滚动翻页时同步）；加/删页后 max 也要更新 */
+  document.querySelectorAll(".ink-pager").forEach(r=>{
+    r.max = st.pages.length;
+    if(document.activeElement !== r) r.value = st.page + 1;
+  });
 }

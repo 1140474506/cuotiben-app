@@ -4,9 +4,9 @@
    旧版笔记本全屏用的是另一套 class（.ink-bar/.ink-c/.ink-w），
    而事件是按 data-tool/data-act 匹配的，所以笔记本里整条工具栏根本点不动。
    现在只有这一份 HTML 和这一份接线。 */
-function inkToolBtn(tool, label, title){
+function inkToolBtn(tool, ic, title){
   const on = inkPad.tool === tool ? " on" : "";
-  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${label}</button>`;
+  return `<button class="btn ghost small ink-tool${on}" data-tool="${tool}" title="${title}">${icon(ic)}</button>`;
 }
 function inkToolbarHTML(){
   const st = inkPad;
@@ -15,33 +15,34 @@ function inkToolbarHTML(){
   const pg = st.pages[st.page];
   const layers = (pg && !Array.isArray(pg) && pg.layers) || null;
   return `
-    ${inkToolBtn("pen","✒️","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
-    ${inkToolBtn("highlighter","🖍️","荧光笔：半透明，重叠不加深")}
-    ${inkToolBtn("line","📏","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
-    ${inkToolBtn("lasso","🔲","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
-    ${inkToolBtn("erase","🧽","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
-    ${inkToolBtn("pan","✋","手型：拖动纸面（双指捏合随时可用）")}
+    ${inkToolBtn("pen","pen","笔（再点一下展开颜色 / 粗细；笔尖按住不动约 0.6 秒 = 临时橡皮，抬笔恢复）")}
+    ${inkToolBtn("highlighter","marker","荧光笔：半透明，重叠不加深")}
+    ${inkToolBtn("line","line","直线：分数线 / 坐标轴 / 矩阵括号。按住 Shift 吸附 15° 整角")}
+    ${inkToolBtn("lasso","lasso","套索：圈住笔迹后可拖动、缩放、换色、复制、删除")}
+    ${inkToolBtn("erase","eraser","橡皮：扫到哪擦到哪，压得越重擦得越宽。抽屉里可切「整条擦除」")}
+    ${inkToolBtn("pan","hand","手型：拖动纸面（双指捏合随时可用）")}
     ${sep}
-    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>↩️</button>
-    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>↪️</button>
+    <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>${icon("undo")}</button>
+    <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>${icon("redo")}</button>
     ${sep}
-    ${nb && !(pg && pg.infinite) ? `<span class="muted ink-page" title="当前页 / 总页数">${st.page+1}/${st.pages.length}页</span>
-    <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">＋页</button>
-    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">✕页</button>`:""}`:""}
-    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">🗂️</button>`:""}
-    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">📚 ${st.activeLayer+1}/${layers.length}</button>`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small ink-page" data-act="goto" title="点一下输入页码跳转">${st.page+1}/${st.pages.length}页</button>
+    ${st.pages.length>1?`<input type="range" class="ink-range ink-pager" data-k="pager" min="1" max="${st.pages.length}" value="${st.page+1}" title="快速翻页拉条">`:""}
+    <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">${icon("plus")} 加页</button>
+    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">${icon("trash")}</button>`:""}`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">${icon("grid")}</button>`:""}
+    ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">${icon("layers")} ${st.activeLayer+1}/${layers.length}</button>`:""}
     ${sep}
     <button class="btn ghost small" data-act="zoomout" title="缩小">－</button>
     <button class="btn ghost small ink-zoom" data-act="fitview" title="点一下回到适配大小（G）">${Math.round(st.view.z*100)}%</button>
     <button class="btn ghost small" data-act="zoomin" title="放大">＋</button>
-    ${st.fs?"":`<button class="btn ghost small" data-act="fs" title="全屏书写">⛶ 全屏</button>`}
+    ${st.fs?"":`<button class="btn ghost small" data-act="fs" title="全屏书写">${icon("expand")} 全屏</button>`}
     ${st.lasso?`
     <div class="inkset">
       <span class="lbl">${st.lasso.items.length ? `选中 ${st.lasso.items.length} 笔` : "截图区域"}</span>
       ${st.lasso.items.length ? INK_COLORS.map((c,i)=>`<button class="ink-dot" data-lcolor="${i}" style="background:${c}" title="换成这个颜色"></button>`).join("") : ""}
       ${st.lasso.items.length ? `<button class="btn ghost small" data-act="ldup" title="原地复制一份">⧉ 复制</button>
-      <button class="btn ghost small" data-act="ldel" title="删除（Delete）">🗑 删除</button>` : ""}
-      <button class="btn ghost small" data-act="lshot" title="截下圈住的区域，当场预览，再决定 复制 / 保存 / AI 入题库">📸 截图</button>
+      <button class="btn ghost small" data-act="ldel" title="删除（Delete）">${icon("trash")} 删除</button>` : ""}
+      <button class="btn ghost small" data-act="lshot" title="截下圈住的区域，当场预览，再决定 复制 / 保存 / AI 入题库">${icon("crop")} 截图</button>
       ${st.lasso.items.length && layers && layers.length>1?layers.map((l,i)=> i===st.lasso.layer?"":
         `<button class="btn ghost small" data-llayer="${i}" title="搬到「${l.name}」">→ ${l.name}</button>`).join(""):""}
       <button class="btn ghost small" data-act="lnone" title="取消选择（Esc）">✕</button>
@@ -70,13 +71,13 @@ function inkSettingsHTML(){
     <span class="lbl ink-rv">${(+v).toFixed(hl?0:1)}</span>
     <i class="ink-prev" style="height:${Math.min(15, hl ? v/2.7 : v*2.8).toFixed(1)}px"></i>
     <span class="ink-seg"></span>
-    <button class="btn ghost small ${st.snap?"on":""}" data-act="snap" title="一笔画完的圆 / 方 / 直线自动摆正，写字不受影响">📐 整形</button>
-    <button class="btn ghost small ${st.haptic!==false?"on":""}" data-act="haptic" title="手写笔落笔时轻轻震一下（平板 APP 生效）">📳 震动</button>
+    <button class="btn ghost small ${st.snap?"on":""}" data-act="snap" title="一笔画完的圆 / 方 / 直线自动摆正，写字不受影响">${icon("shape")} 整形</button>
+    <button class="btn ghost small ${st.haptic!==false?"on":""}" data-act="haptic" title="手写笔落笔时轻轻震一下（平板 APP 生效）">${icon("vibrate")} 震动</button>
     <span class="ink-seg"></span>
     <span class="lbl">输入</span>
-    <button class="btn ghost small ink-in ${st.input==="auto"?"on":""}" data-in="auto" title="自动：认出手写笔后自动忽略手掌，双指仍可缩放">🤖 自动</button>
-    <button class="btn ghost small ink-in ${st.input==="pen"?"on":""}" data-in="pen" title="只认手写笔">✒️ 笔</button>
-    <button class="btn ghost small ink-in ${st.input==="finger"?"on":""}" data-in="finger" title="允许手指书写">👆 手指</button>`;
+    <button class="btn ghost small ink-in ${st.input==="auto"?"on":""}" data-in="auto" title="自动：认出手写笔后自动忽略手掌，双指仍可缩放">${icon("sparkle")} 自动</button>
+    <button class="btn ghost small ink-in ${st.input==="pen"?"on":""}" data-in="pen" title="只认手写笔">${icon("pen")} 笔</button>
+    <button class="btn ghost small ink-in ${st.input==="finger"?"on":""}" data-in="finger" title="允许手指书写">${icon("hand")} 手指</button>`;
 }
 function inkSyncBar(){
   const st = inkPad; if(!st) return;
@@ -102,6 +103,10 @@ let inkPrefTimer = 0;
 function inkRangeInput(r){
   const st = inkPad; if(!st) return;
   const v = +r.value;
+  if(r.dataset.k === "pager"){           // 翻页拉条：拖到哪页跳哪页
+    if(v >= 1 && v <= st.pages.length && v-1 !== st.page) inkGotoPage(v-1);
+    return;
+  }
   if(r.dataset.k === "pen") st.penW = v;
   else if(r.dataset.k === "hl") st.hlW = v;
   else st.eraser = v;
@@ -161,6 +166,13 @@ function inkBarAction(b){
         return;
       }
       case "fitview": inkFitView(); inkInvalidate(); inkZoomLabel(); return;
+      case "goto": {
+        if(!st.pages.length) return;
+        const v = parseInt(prompt(`跳到第几页？（1 - ${st.pages.length}）`, st.page+1), 10);
+        if(v >= 1 && v <= st.pages.length && v !== st.page+1) inkGotoPage(v-1);
+        return;
+      }
+      case "rename": return inkRenameNote();
       case "fs": return inkFullscreen();
       case "unfs": return inkUnfullscreen();
       case "export": return inkExportPDF();
@@ -365,6 +377,7 @@ function inkFullscreen(){
     <div class="inkfs-top">
       <button class="btn small" data-act="unfs">${st.note ? "🔙 返回" : "✅ 写完了"}</button>
       <span class="ink-name">${st.note ? (st.note.title||"未命名笔记") : "手写演算"}</span>
+      ${st.note?`<button class="btn ghost small" data-act="rename" title="改名字">${icon("pen")}</button>`:""}
       <div style="flex:1"></div>
       ${st.note?`<button class="btn ghost small" data-act="export" title="导出成 PDF">⬇️ PDF</button>`:""}
       <button class="btn ghost small" data-act="clearpage" title="清空当前页">🧹</button>
@@ -550,6 +563,15 @@ addEventListener("beforeunload", e=>{
   e.preventDefault(); e.returnValue = "";
 });
 
-
-
-
+/* 重命名笔记本（PDF / 图片导入的一样，改的都是 note.title） */
+function inkRenameNote(){
+  const st = inkPad;
+  if(!st || !st.note) return;
+  const name = (prompt("笔记本改叫什么名字？", st.note.title || "") || "").trim().slice(0, 40);
+  if(!name || name === st.note.title) return;
+  st.note.title = name;
+  const t = st.fs && st.fs.querySelector(".inkfs-top .ink-name");
+  if(t) t.textContent = name;
+  if(st.saveFn) st.saveFn();
+  toast("已改名");
+}
