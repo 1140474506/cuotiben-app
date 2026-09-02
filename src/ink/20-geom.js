@@ -8,6 +8,11 @@
    放大写小字、缩回总览，一个字节都不用改。 */
 const INK_PAPER_W = 900;   // bgType:"html" 的纸宽（固定 CSS px，iframe 靠 scale 适配容器）
 const INK_NB_W = 1000, INK_NB_H = 1414;   // 笔记本空白页（近似 A4 竖版）
+/* 无限画布页：infinite:true。实际是一张足够大的固定尺寸纸（≈14×14 张 A4），
+   底纹只画看得见的部分，纸边不画边框/页码/阴影，看起来就是一块白板。
+   写满 20000 单位（约 50 页 A4 的量）才到边界——对一份笔记足够「无限」，
+   又不用改数据结构：坐标仍是页内坐标，缩放平移照旧。 */
+const INK_INF_W = 20000, INK_INF_H = 20000;
 
 function inkPageW(pg){
   if(Array.isArray(pg)) return INK_W;
@@ -48,12 +53,15 @@ function inkPageAtY(cy, lay){
   }
   return st.pages.length - 1;
 }
-/* 基准倍率：第一页整页看得见（一屏≈一页），和旧版的手感一致 */
+/* 基准倍率：第一页整页看得见（一屏≈一页），和旧版的手感一致。
+   无限画布页不能用 min(cw/w, ch/h)——20000 的纸会被缩成看不见的一小点，
+   按设计宽 1000 适配（和白板一样的初始视野）。 */
 function inkBaseK(cw, ch, lay){
   const st = inkPad;
   const pg0 = st.pages[0];
   const w0 = inkPageW(pg0) || INK_W, h0 = inkPageH(pg0) || INK_H;
   if(st.fitMode === "width") return cw / (lay.W || w0);
+  if(!Array.isArray(pg0) && pg0.infinite) return cw / 1000;
   return Math.min(cw / w0, ch / h0);
 }
 function inkMap(cw, ch){

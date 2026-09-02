@@ -25,10 +25,10 @@ function inkToolbarHTML(){
     <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>↩️</button>
     <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>↪️</button>
     ${sep}
-    <span class="muted ink-page" title="当前页 / 总页数">${st.page+1}/${st.pages.length}页</span>
+    ${nb && !(pg && pg.infinite) ? `<span class="muted ink-page" title="当前页 / 总页数">${st.page+1}/${st.pages.length}页</span>
     <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">＋页</button>
-    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">✕页</button>`:""}
-    ${nb?`<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">🗂️</button>`:""}
+    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">✕页</button>`:""}`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">🗂️</button>`:""}
     ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">📚 ${st.activeLayer+1}/${layers.length}</button>`:""}
     ${sep}
     <button class="btn ghost small" data-act="zoomout" title="缩小">－</button>
@@ -151,10 +151,12 @@ function inkNewPage(){
   const st = inkPad;
   const proto = st && st.pages[st.pages.length-1];
   if(!st || Array.isArray(proto) || !proto) return [];
-  return {id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+  const pg = {id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
           bgType:"blank", bgData:null, w:proto.w||INK_NB_W, h:proto.h||INK_NB_H,
           grid:proto.grid||"dot",
           layers:[{id:"l1", name:"图层 1", visible:true, strokes:[]}]};
+  if(proto.infinite){ pg.infinite = true; pg.w = proto.w || INK_INF_W; pg.h = proto.h || INK_INF_H; }
+  return pg;
 }
 function inkAddPage(){
   const st = inkPad; if(!st) return;

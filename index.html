@@ -363,6 +363,22 @@
 .ink-thumb canvas{display:block; width:100%; border-radius:4px}
 .ink-thumb .cap{font-size:11px; color:var(--muted); text-align:center; font-weight:bold}
 
+/* 新建笔记弹窗：名称 + 纸张样式（A4 分页 / 无限画布） */
+.nb-new-mask{position:fixed; inset:0; z-index:180; background:rgba(20,28,40,.45);
+  display:flex; align-items:center; justify-content:center; padding:20px}
+.nb-new{width:min(430px,94vw); padding:18px}
+.nb-new-title{width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:8px;
+  font:inherit; background:var(--bg)}
+.nb-new-title:focus{outline:none; border-color:var(--blue)}
+.nb-style-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.nb-style{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:12px; border:2px solid var(--line); border-radius:10px; background:var(--card);
+  cursor:pointer; text-align:left; font:inherit}
+.nb-style .ic{font-size:22px}
+.nb-style b{font-size:14px}
+.nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
+.nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
+
 /* 笔记本封面网格 */
 .nb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(146px,1fr)); gap:14px}
 .nb-card{position:relative; background:var(--card); border:2px solid var(--line); border-radius:10px;
@@ -1245,20 +1261,76 @@ async function noteEnsureBg(pg){
     });
   }catch(e){}
 }
+/* 新建笔记：选名字 + 选样式（标准 A4 分页 / 无限画布）。
+   原来是 prompt 一个名字直接建，样式没有选择的余地。 */
 async function noteNewBlank(){
-  const title = prompt("笔记本叫什么名字？", "新建笔记");
-  if(!title) return;
+  if(document.querySelector(".nb-new-mask")) return;
+  const mask = document.createElement("div");
+  mask.className = "nb-new-mask";
+  mask.innerHTML = `
+    <div class="card nb-new">
+      <h3 style="margin:0 0 12px">新建笔记</h3>
+      <input id="nbNewTitle" class="nb-new-title" placeholder="笔记本名称" value="新建笔记" maxlength="40">
+      <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">纸张样式</div>
+      <div class="nb-style-grid">
+        <button class="nb-style on" data-style="a4">
+          <span class="ic">📄</span><b>标准分页</b>
+          <span class="d">A4 纸带边框，可加页<br>适合正式笔记</span>
+        </button>
+        <button class="nb-style" data-style="inf">
+          <span class="ic">♾️</span><b>无限画布</b>
+          <span class="d">无边框，随便到处写<br>适合草稿和演算</span>
+        </button>
+      </div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end">
+        <button class="btn ghost small" data-act="cancel">取消</button>
+        <button class="btn small" data-act="ok">创建</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  const titleInput = mask.querySelector("#nbNewTitle");
+  titleInput.focus(); titleInput.select();
+  let style = "a4";
+  mask.addEventListener("click", e=>{
+    const s = e.target.closest(".nb-style");
+    if(s){
+      style = s.dataset.style;
+      mask.querySelectorAll(".nb-style").forEach(x=> x.classList.toggle("on", x===s));
+      return;
+    }
+    const b = e.target.closest("button[data-act]");
+    if(!b) return;
+    if(b.dataset.act === "cancel"){ mask.remove(); return; }
+    const title = titleInput.value.trim();
+    if(!title){ titleInput.focus(); return; }
+    mask.remove();
+    noteCreate(title, style);
+  });
+  titleInput.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      const title = titleInput.value.trim();
+      if(title){ mask.remove(); noteCreate(title, style); }
+    }
+  });
+}
+async function noteCreate(title, style){
+  const inf = style === "inf";
   const n = {
     id: "nb_" + Date.now(),
     title,
     cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
     createdAt: Date.now(), updatedAt: Date.now(),
-    pages: [{
-      id: "pg_" + Date.now().toString(36),
-      bgType: "blank", bgData: null,
-      w: INK_NB_W, h: INK_NB_H, grid: "dot",
-      layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}]
-    }]
+    pages: [ inf
+      ? { id: "pg_" + Date.now().toString(36),
+          bgType: "blank", bgData: null, infinite: true,
+          w: INK_INF_W, h: INK_INF_H, grid: "dot",
+          layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}] }
+      : { id: "pg_" + Date.now().toString(36),
+          bgType: "blank", bgData: null,
+          w: INK_NB_W, h: INK_NB_H, grid: "dot",
+          layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}] }
+    ]
   };
   await dbNotePut(n);
   renderNotes();
@@ -1386,12 +1458,18 @@ async function inkExportPDF(){
     const hasHtml = st.pages.some(p => !Array.isArray(p) && p.bgType === "html");
     let pdf = null;
     for(const pg of st.pages){
-      const w = inkPageW(pg), h = inkPageH(pg);
-      const k = Math.min(2, Math.sqrt(4e6 / (w*h)));
-      const pw = Math.round(w*k), ph = Math.round(h*k);
+      /* 无限画布页按笔迹包围盒取景导出（整张 20000 的纸导出来是一张空纸） */
+      let win = null, fw = inkPageW(pg), fh = inkPageH(pg);
+      if(!Array.isArray(pg) && pg.infinite){
+        const bb = inkInkBB(pg);
+        win = bb ? [bb[0]-80, bb[1]-80, bb[2]+80, bb[3]+80] : [0, 0, 1000, 1000];
+        fw = win[2]-win[0]; fh = win[3]-win[1];
+      }
+      const k = Math.min(2, Math.sqrt(4e6 / (fw*fh)));
+      const pw = Math.round(fw*k), ph = Math.round(fh*k);
       const cv = document.createElement("canvas");
       cv.width = pw; cv.height = ph;
-      inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true);
+      inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true, win);
       if(!pdf) pdf = new jsPDF({orientation: ph >= pw ? "portrait" : "landscape", unit: "px", format: [pw, ph]});
       else pdf.addPage([pw, ph], ph >= pw ? "portrait" : "landscape");
       pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);
@@ -2354,6 +2432,11 @@ function inkTargetStrokes(pg){
    放大写小字、缩回总览，一个字节都不用改。 */
 const INK_PAPER_W = 900;   // bgType:"html" 的纸宽（固定 CSS px，iframe 靠 scale 适配容器）
 const INK_NB_W = 1000, INK_NB_H = 1414;   // 笔记本空白页（近似 A4 竖版）
+/* 无限画布页：infinite:true。实际是一张足够大的固定尺寸纸（≈14×14 张 A4），
+   底纹只画看得见的部分，纸边不画边框/页码/阴影，看起来就是一块白板。
+   写满 20000 单位（约 50 页 A4 的量）才到边界——对一份笔记足够「无限」，
+   又不用改数据结构：坐标仍是页内坐标，缩放平移照旧。 */
+const INK_INF_W = 20000, INK_INF_H = 20000;
 
 function inkPageW(pg){
   if(Array.isArray(pg)) return INK_W;
@@ -2394,12 +2477,15 @@ function inkPageAtY(cy, lay){
   }
   return st.pages.length - 1;
 }
-/* 基准倍率：第一页整页看得见（一屏≈一页），和旧版的手感一致 */
+/* 基准倍率：第一页整页看得见（一屏≈一页），和旧版的手感一致。
+   无限画布页不能用 min(cw/w, ch/h)——20000 的纸会被缩成看不见的一小点，
+   按设计宽 1000 适配（和白板一样的初始视野）。 */
 function inkBaseK(cw, ch, lay){
   const st = inkPad;
   const pg0 = st.pages[0];
   const w0 = inkPageW(pg0) || INK_W, h0 = inkPageH(pg0) || INK_H;
   if(st.fitMode === "width") return cw / (lay.W || w0);
+  if(!Array.isArray(pg0) && pg0.infinite) return cw / 1000;
   return Math.min(cw / w0, ch / h0);
 }
 function inkMap(cw, ch){
@@ -2532,11 +2618,13 @@ const inkDirty = s => { s._pa = null; s._pn = -1; };
 
 /* ---- 三层画布 ----
    dry：已落稿。wet：正在写的这一笔。pred：预测的笔尖延伸。
-   desynchronized 让浏览器可以跳过一次合成排队（Chrome/Edge 在触屏设备上
-   实测能省一整帧），代价是 canvas 内容不保证与页面其它部分同帧——对墨迹来说
-   正是想要的。alpha:false 不能用：wet/pred 必须透明才能叠在 dry 上。 */
+   注意：这里刻意不用 desynchronized:true。它桌面 Chrome 上能省一次合成排队，
+   但在部分设备的 GPU 呈现路径上（夸克 / 某些 Windows·Android 组合）透明画布
+   第一次提交就整块呈现成纯黑——「笔一搭上去画布全黑」就是这个。
+   低延迟不靠它：出墨走 pointerrawupdate 增量小段，重绘合流到一帧一次，
+   普通上下文一样是毫秒级。 */
 function inkCtx(cv){
-  return cv.getContext("2d", {desynchronized:true, alpha:true});
+  return cv.getContext("2d");
 }
 /* 画布尺寸跟着容器走。dpr 封顶 2，再按总像素上限收一收（长卷 + 3x 屏会吃掉几百 MB）*/
 function inkResizeCanvases(){
@@ -2578,8 +2666,10 @@ function inkPaintStrokes(ctx, strokes, clip){
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
 }
-/* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明） */
-function inkPaintBg(ctx, pg, w, h){
+/* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明）。
+   clip = 可见区域（页内坐标），无限画布页的底纹必须按它裁着画——
+   20000×20000 的点阵是 25 万个点，全画一帧就是几十毫秒的卡顿。 */
+function inkPaintBg(ctx, pg, w, h, clip){
   if(!Array.isArray(pg) && pg.bgType === "html") return;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, w, h);
@@ -2591,16 +2681,34 @@ function inkPaintBg(ctx, pg, w, h){
   const grid = Array.isArray(pg) ? "dot" : (pg.grid || "dot");
   if(grid === "none") return;
   const step = 40;
+  const gx0 = clip ? Math.max(step, Math.floor(clip[0]/step)*step) : step;
+  const gx1 = clip ? Math.min(w, Math.ceil(clip[2]/step)*step) : w;
+  const gy0 = clip ? Math.max(step, Math.floor(clip[1]/step)*step) : step;
+  const gy1 = clip ? Math.min(h, Math.ceil(clip[3]/step)*step) : h;
   if(grid === "line" || grid === "grid"){
     ctx.strokeStyle = "#e3e8ee"; ctx.lineWidth = 1;
     ctx.beginPath();
-    for(let y=step; y<h; y+=step){ ctx.moveTo(0, y+.5); ctx.lineTo(w, y+.5); }
-    if(grid === "grid") for(let x=step; x<w; x+=step){ ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, h); }
+    for(let y=gy0; y<gy1; y+=step){ ctx.moveTo(0, y+.5); ctx.lineTo(w, y+.5); }
+    if(grid === "grid") for(let x=gx0; x<gx1; x+=step){ ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, h); }
     ctx.stroke();
     return;
   }
   ctx.fillStyle = "#dde1e7";
-  for(let x=step; x<w; x+=step) for(let y=step; y<h; y+=step) ctx.fillRect(x-1, y-1, 2, 2);
+  for(let x=gx0; x<gx1; x+=step) for(let y=gy0; y<gy1; y+=step) ctx.fillRect(x-1, y-1, 2, 2);
+}
+/* 一页里所有笔迹的总包围盒（缩略图/导出无限画布页时取景用） */
+function inkInkBB(pg){
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for(const s of inkStrokesOf(pg, -1)){
+    inkStrokeGeom(s);
+    const b = s._bb;
+    if(!b) continue;
+    if(b[0] < x0) x0 = b[0];
+    if(b[1] < y0) y0 = b[1];
+    if(b[2] > x1) x1 = b[2];
+    if(b[3] > y1) y1 = b[3];
+  }
+  return x1 > -Infinity ? [x0, y0, x1, y1] : null;
 }
 /* 背景图按需从 nb_files 里取，取到后重画一次。失败也要记下来，
    否则每帧都会重新发起一次 IndexedDB 请求。 */
@@ -2654,18 +2762,20 @@ function inkRender(){
     const w = inkPageW(pg), h = inkPageH(pg);
     const [px, py] = inkPageOrigin(i, lay);
     if(py > vis[3] || py + h < vis[1]) continue;      // 这一页整个在屏外
+    /* 无限画布页：没有纸的概念，不画阴影/边框/页码，底纹按可见区裁着画 */
+    const inf = !Array.isArray(pg) && !!pg.infinite;
     ctx.save();
     ctx.translate(px, py);
     if(!st.transparent){
-      if(shadow){
+      if(!inf && shadow){
         ctx.fillStyle = "rgba(43,58,74,.13)";
         ctx.fillRect(3/m.k, 3/m.k, w, h);
       }
-      inkPaintBg(ctx, pg, w, h);
+      inkPaintBg(ctx, pg, w, h, [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py]);
     }
     const clip = [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py];
     inkPaintStrokes(ctx, inkStrokesOf(pg, -1), clip);
-    if(!st.transparent){
+    if(!st.transparent && !inf){
       ctx.strokeStyle = "#c9d0da"; ctx.lineWidth = Math.max(0.6, 1/m.k);
       ctx.strokeRect(0, 0, w, h);
       if(st.pages.length > 1){
@@ -2756,16 +2866,31 @@ function inkPaint(cv, pgData){
   inkPaintBg(ctx, pgData, w, h);
   inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), null);
 }
-/* 导出/缩略图用：把一页画到指定像素尺寸的上下文里 */
-function inkPaintPageTo(ctx, pgData, outW, outH, opaque){
+/* 导出/缩略图用：把一页画到指定像素尺寸的上下文里。
+   无限画布页自动取笔迹包围盒为取景框（整张 20000 的纸缩成缩略图只会是一个点）；
+   win 参数可显式指定取景框 [x0,y0,x1,y1]（页内坐标）。 */
+function inkPaintPageTo(ctx, pgData, outW, outH, opaque, win){
   const w = Array.isArray(pgData) ? INK_W : inkPageW(pgData);
   const h = Array.isArray(pgData) ? INK_H : inkPageH(pgData);
-  const k = Math.min(outW/w, outH/h);
+  let bx = 0, by = 0, bw = w, bh = h;
+  if(win){ bx = win[0]; by = win[1]; bw = win[2]-win[0]; bh = win[3]-win[1]; }
+  else if(!Array.isArray(pgData) && pgData.infinite){
+    const bb = inkInkBB(pgData);
+    if(bb){
+      bx = bb[0]-80; by = bb[1]-80;
+      bw = bb[2]-bb[0]+160; bh = bb[3]-bb[1]+160;
+    }else{ bx = 0; by = 0; bw = 1000; bh = 1000; }
+  }
+  if(bw < 1 || bh < 1){ bw = 1; bh = 1; }
+  const k = Math.min(outW/bw, outH/bh);
   ctx.save();
   if(opaque){ ctx.fillStyle = "#fff"; ctx.fillRect(0,0,outW,outH); }
-  ctx.translate((outW-w*k)/2, (outH-h*k)/2); ctx.scale(k, k);
-  inkPaintBg(ctx, pgData, w, h);
-  inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), null);
+  ctx.translate((outW-bw*k)/2, (outH-bh*k)/2);
+  ctx.scale(k, k);
+  ctx.translate(-bx, -by);
+  const frame = [bx, by, bx+bw, by+bh];
+  inkPaintBg(ctx, pgData, w, h, frame);
+  inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), frame);
   ctx.restore();
 }
 addEventListener("resize", ()=>{ if(inkPad){ inkPad._rect = null; inkInvalidate(); } });
@@ -3292,7 +3417,8 @@ const INK_TAP_SLOP = 12;
 function inkHitPage(st, clientX, clientY, allowGrow){
   const [cx, cy] = inkToContent(st, clientX, clientY);
   const lay = st._lay || inkLayout();
-  if(cy < -INK_GAP) return null;                    // 纸上方，不写
+  const inf = st.pages.length === 1 && !Array.isArray(st.pages[0]) && !!st.pages[0].infinite;
+  if(cy < -INK_GAP && !inf) return null;        // 纸上方，不写（无限画布没有「上方」）
   let pi = inkPageAtY(cy, lay);
   const last = st.pages.length - 1;
   const lastBottom = lay.tops[last] + inkPageH(st.pages[last]);
@@ -3832,10 +3958,10 @@ function inkToolbarHTML(){
     <button class="btn ghost small" data-act="undo" title="撤销（Ctrl+Z，双指轻点纸面也可以）" ${st.undo.length?"":"disabled"}>↩️</button>
     <button class="btn ghost small" data-act="redo" title="重做（Ctrl+Shift+Z，三指轻点纸面）" ${st.redo.length?"":"disabled"}>↪️</button>
     ${sep}
-    <span class="muted ink-page" title="当前页 / 总页数">${st.page+1}/${st.pages.length}页</span>
+    ${nb && !(pg && pg.infinite) ? `<span class="muted ink-page" title="当前页 / 总页数">${st.page+1}/${st.pages.length}页</span>
     <button class="btn ghost small" data-act="addpage" title="在下方加一页（写到纸尾也会自动加页）">＋页</button>
-    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">✕页</button>`:""}
-    ${nb?`<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">🗂️</button>`:""}
+    ${st.pages.length>1?`<button class="btn ghost small" data-act="delpage" title="删除当前页">✕页</button>`:""}`:""}
+    ${nb && !(pg && pg.infinite) ? `<button class="btn ghost small${st.thumbsOpen?" on":""}" data-act="thumbs" title="页面缩略图，点一下跳页">🗂️</button>`:""}
     ${layers?`<button class="btn ghost small${st.layersOpen?" on":""}" data-act="layers" title="图层：把批注和正文分开">📚 ${st.activeLayer+1}/${layers.length}</button>`:""}
     ${sep}
     <button class="btn ghost small" data-act="zoomout" title="缩小">－</button>
@@ -3958,10 +4084,12 @@ function inkNewPage(){
   const st = inkPad;
   const proto = st && st.pages[st.pages.length-1];
   if(!st || Array.isArray(proto) || !proto) return [];
-  return {id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+  const pg = {id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
           bgType:"blank", bgData:null, w:proto.w||INK_NB_W, h:proto.h||INK_NB_H,
           grid:proto.grid||"dot",
           layers:[{id:"l1", name:"图层 1", visible:true, strokes:[]}]};
+  if(proto.infinite){ pg.infinite = true; pg.w = proto.w || INK_INF_W; pg.h = proto.h || INK_INF_H; }
+  return pg;
 }
 function inkAddPage(){
   const st = inkPad; if(!st) return;

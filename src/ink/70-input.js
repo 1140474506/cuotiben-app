@@ -20,7 +20,8 @@ const INK_TAP_SLOP = 12;
 function inkHitPage(st, clientX, clientY, allowGrow){
   const [cx, cy] = inkToContent(st, clientX, clientY);
   const lay = st._lay || inkLayout();
-  if(cy < -INK_GAP) return null;                    // 纸上方，不写
+  const inf = st.pages.length === 1 && !Array.isArray(st.pages[0]) && !!st.pages[0].infinite;
+  if(cy < -INK_GAP && !inf) return null;        // 纸上方，不写（无限画布没有「上方」）
   let pi = inkPageAtY(cy, lay);
   const last = st.pages.length - 1;
   const lastBottom = lay.tops[last] + inkPageH(st.pages[last]);

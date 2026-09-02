@@ -50,11 +50,13 @@ const inkDirty = s => { s._pa = null; s._pn = -1; };
 
 /* ---- 三层画布 ----
    dry：已落稿。wet：正在写的这一笔。pred：预测的笔尖延伸。
-   desynchronized 让浏览器可以跳过一次合成排队（Chrome/Edge 在触屏设备上
-   实测能省一整帧），代价是 canvas 内容不保证与页面其它部分同帧——对墨迹来说
-   正是想要的。alpha:false 不能用：wet/pred 必须透明才能叠在 dry 上。 */
+   注意：这里刻意不用 desynchronized:true。它桌面 Chrome 上能省一次合成排队，
+   但在部分设备的 GPU 呈现路径上（夸克 / 某些 Windows·Android 组合）透明画布
+   第一次提交就整块呈现成纯黑——「笔一搭上去画布全黑」就是这个。
+   低延迟不靠它：出墨走 pointerrawupdate 增量小段，重绘合流到一帧一次，
+   普通上下文一样是毫秒级。 */
 function inkCtx(cv){
-  return cv.getContext("2d", {desynchronized:true, alpha:true});
+  return cv.getContext("2d");
 }
 /* 画布尺寸跟着容器走。dpr 封顶 2，再按总像素上限收一收（长卷 + 3x 屏会吃掉几百 MB）*/
 function inkResizeCanvases(){
@@ -96,8 +98,10 @@ function inkPaintStrokes(ctx, strokes, clip){
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
 }
-/* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明） */
-function inkPaintBg(ctx, pg, w, h){
+/* 一页的背景。html 页的背景由 iframe 提供，这里什么都不画（保持透明）。
+   clip = 可见区域（页内坐标），无限画布页的底纹必须按它裁着画——
+   20000×20000 的点阵是 25 万个点，全画一帧就是几十毫秒的卡顿。 */
+function inkPaintBg(ctx, pg, w, h, clip){
   if(!Array.isArray(pg) && pg.bgType === "html") return;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, w, h);
@@ -109,16 +113,34 @@ function inkPaintBg(ctx, pg, w, h){
   const grid = Array.isArray(pg) ? "dot" : (pg.grid || "dot");
   if(grid === "none") return;
   const step = 40;
+  const gx0 = clip ? Math.max(step, Math.floor(clip[0]/step)*step) : step;
+  const gx1 = clip ? Math.min(w, Math.ceil(clip[2]/step)*step) : w;
+  const gy0 = clip ? Math.max(step, Math.floor(clip[1]/step)*step) : step;
+  const gy1 = clip ? Math.min(h, Math.ceil(clip[3]/step)*step) : h;
   if(grid === "line" || grid === "grid"){
     ctx.strokeStyle = "#e3e8ee"; ctx.lineWidth = 1;
     ctx.beginPath();
-    for(let y=step; y<h; y+=step){ ctx.moveTo(0, y+.5); ctx.lineTo(w, y+.5); }
-    if(grid === "grid") for(let x=step; x<w; x+=step){ ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, h); }
+    for(let y=gy0; y<gy1; y+=step){ ctx.moveTo(0, y+.5); ctx.lineTo(w, y+.5); }
+    if(grid === "grid") for(let x=gx0; x<gx1; x+=step){ ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, h); }
     ctx.stroke();
     return;
   }
   ctx.fillStyle = "#dde1e7";
-  for(let x=step; x<w; x+=step) for(let y=step; y<h; y+=step) ctx.fillRect(x-1, y-1, 2, 2);
+  for(let x=gx0; x<gx1; x+=step) for(let y=gy0; y<gy1; y+=step) ctx.fillRect(x-1, y-1, 2, 2);
+}
+/* 一页里所有笔迹的总包围盒（缩略图/导出无限画布页时取景用） */
+function inkInkBB(pg){
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for(const s of inkStrokesOf(pg, -1)){
+    inkStrokeGeom(s);
+    const b = s._bb;
+    if(!b) continue;
+    if(b[0] < x0) x0 = b[0];
+    if(b[1] < y0) y0 = b[1];
+    if(b[2] > x1) x1 = b[2];
+    if(b[3] > y1) y1 = b[3];
+  }
+  return x1 > -Infinity ? [x0, y0, x1, y1] : null;
 }
 /* 背景图按需从 nb_files 里取，取到后重画一次。失败也要记下来，
    否则每帧都会重新发起一次 IndexedDB 请求。 */

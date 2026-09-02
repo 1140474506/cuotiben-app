@@ -31,18 +31,20 @@ function inkRender(){
     const w = inkPageW(pg), h = inkPageH(pg);
     const [px, py] = inkPageOrigin(i, lay);
     if(py > vis[3] || py + h < vis[1]) continue;      // 这一页整个在屏外
+    /* 无限画布页：没有纸的概念，不画阴影/边框/页码，底纹按可见区裁着画 */
+    const inf = !Array.isArray(pg) && !!pg.infinite;
     ctx.save();
     ctx.translate(px, py);
     if(!st.transparent){
-      if(shadow){
+      if(!inf && shadow){
         ctx.fillStyle = "rgba(43,58,74,.13)";
         ctx.fillRect(3/m.k, 3/m.k, w, h);
       }
-      inkPaintBg(ctx, pg, w, h);
+      inkPaintBg(ctx, pg, w, h, [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py]);
     }
     const clip = [vis[0]-px, vis[1]-py, vis[2]-px, vis[3]-py];
     inkPaintStrokes(ctx, inkStrokesOf(pg, -1), clip);
-    if(!st.transparent){
+    if(!st.transparent && !inf){
       ctx.strokeStyle = "#c9d0da"; ctx.lineWidth = Math.max(0.6, 1/m.k);
       ctx.strokeRect(0, 0, w, h);
       if(st.pages.length > 1){
@@ -133,16 +135,31 @@ function inkPaint(cv, pgData){
   inkPaintBg(ctx, pgData, w, h);
   inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), null);
 }
-/* 导出/缩略图用：把一页画到指定像素尺寸的上下文里 */
-function inkPaintPageTo(ctx, pgData, outW, outH, opaque){
+/* 导出/缩略图用：把一页画到指定像素尺寸的上下文里。
+   无限画布页自动取笔迹包围盒为取景框（整张 20000 的纸缩成缩略图只会是一个点）；
+   win 参数可显式指定取景框 [x0,y0,x1,y1]（页内坐标）。 */
+function inkPaintPageTo(ctx, pgData, outW, outH, opaque, win){
   const w = Array.isArray(pgData) ? INK_W : inkPageW(pgData);
   const h = Array.isArray(pgData) ? INK_H : inkPageH(pgData);
-  const k = Math.min(outW/w, outH/h);
+  let bx = 0, by = 0, bw = w, bh = h;
+  if(win){ bx = win[0]; by = win[1]; bw = win[2]-win[0]; bh = win[3]-win[1]; }
+  else if(!Array.isArray(pgData) && pgData.infinite){
+    const bb = inkInkBB(pgData);
+    if(bb){
+      bx = bb[0]-80; by = bb[1]-80;
+      bw = bb[2]-bb[0]+160; bh = bb[3]-bb[1]+160;
+    }else{ bx = 0; by = 0; bw = 1000; bh = 1000; }
+  }
+  if(bw < 1 || bh < 1){ bw = 1; bh = 1; }
+  const k = Math.min(outW/bw, outH/bh);
   ctx.save();
   if(opaque){ ctx.fillStyle = "#fff"; ctx.fillRect(0,0,outW,outH); }
-  ctx.translate((outW-w*k)/2, (outH-h*k)/2); ctx.scale(k, k);
-  inkPaintBg(ctx, pgData, w, h);
-  inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), null);
+  ctx.translate((outW-bw*k)/2, (outH-bh*k)/2);
+  ctx.scale(k, k);
+  ctx.translate(-bx, -by);
+  const frame = [bx, by, bx+bw, by+bh];
+  inkPaintBg(ctx, pgData, w, h, frame);
+  inkPaintStrokes(ctx, inkStrokesOf(pgData, -1), frame);
   ctx.restore();
 }
 addEventListener("resize", ()=>{ if(inkPad){ inkPad._rect = null; inkInvalidate(); } });

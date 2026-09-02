@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuoti-cache-v2';
+const CACHE_NAME = 'cuoti-cache-v3';
 
 self.addEventListener('install', event => {
   event.waitUntil(

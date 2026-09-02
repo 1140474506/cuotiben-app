@@ -75,6 +75,22 @@
 .ink-thumb canvas{display:block; width:100%; border-radius:4px}
 .ink-thumb .cap{font-size:11px; color:var(--muted); text-align:center; font-weight:bold}
 
+/* 新建笔记弹窗：名称 + 纸张样式（A4 分页 / 无限画布） */
+.nb-new-mask{position:fixed; inset:0; z-index:180; background:rgba(20,28,40,.45);
+  display:flex; align-items:center; justify-content:center; padding:20px}
+.nb-new{width:min(430px,94vw); padding:18px}
+.nb-new-title{width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:8px;
+  font:inherit; background:var(--bg)}
+.nb-new-title:focus{outline:none; border-color:var(--blue)}
+.nb-style-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.nb-style{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:12px; border:2px solid var(--line); border-radius:10px; background:var(--card);
+  cursor:pointer; text-align:left; font:inherit}
+.nb-style .ic{font-size:22px}
+.nb-style b{font-size:14px}
+.nb-style .d{font-size:12px; color:var(--muted); line-height:1.5}
+.nb-style.on{border-color:var(--blue); background:var(--blue-weak)}
+
 /* 笔记本封面网格 */
 .nb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(146px,1fr)); gap:14px}
 .nb-card{position:relative; background:var(--card); border:2px solid var(--line); border-radius:10px;

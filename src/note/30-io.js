@@ -85,12 +85,18 @@ async function inkExportPDF(){
     const hasHtml = st.pages.some(p => !Array.isArray(p) && p.bgType === "html");
     let pdf = null;
     for(const pg of st.pages){
-      const w = inkPageW(pg), h = inkPageH(pg);
-      const k = Math.min(2, Math.sqrt(4e6 / (w*h)));
-      const pw = Math.round(w*k), ph = Math.round(h*k);
+      /* 无限画布页按笔迹包围盒取景导出（整张 20000 的纸导出来是一张空纸） */
+      let win = null, fw = inkPageW(pg), fh = inkPageH(pg);
+      if(!Array.isArray(pg) && pg.infinite){
+        const bb = inkInkBB(pg);
+        win = bb ? [bb[0]-80, bb[1]-80, bb[2]+80, bb[3]+80] : [0, 0, 1000, 1000];
+        fw = win[2]-win[0]; fh = win[3]-win[1];
+      }
+      const k = Math.min(2, Math.sqrt(4e6 / (fw*fh)));
+      const pw = Math.round(fw*k), ph = Math.round(fh*k);
       const cv = document.createElement("canvas");
       cv.width = pw; cv.height = ph;
-      inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true);
+      inkPaintPageTo(cv.getContext("2d"), pg, pw, ph, true, win);
       if(!pdf) pdf = new jsPDF({orientation: ph >= pw ? "portrait" : "landscape", unit: "px", format: [pw, ph]});
       else pdf.addPage([pw, ph], ph >= pw ? "portrait" : "landscape");
       pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);

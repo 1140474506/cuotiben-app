@@ -48,20 +48,76 @@ async function noteEnsureBg(pg){
     });
   }catch(e){}
 }
+/* 新建笔记：选名字 + 选样式（标准 A4 分页 / 无限画布）。
+   原来是 prompt 一个名字直接建，样式没有选择的余地。 */
 async function noteNewBlank(){
-  const title = prompt("笔记本叫什么名字？", "新建笔记");
-  if(!title) return;
+  if(document.querySelector(".nb-new-mask")) return;
+  const mask = document.createElement("div");
+  mask.className = "nb-new-mask";
+  mask.innerHTML = `
+    <div class="card nb-new">
+      <h3 style="margin:0 0 12px">新建笔记</h3>
+      <input id="nbNewTitle" class="nb-new-title" placeholder="笔记本名称" value="新建笔记" maxlength="40">
+      <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">纸张样式</div>
+      <div class="nb-style-grid">
+        <button class="nb-style on" data-style="a4">
+          <span class="ic">📄</span><b>标准分页</b>
+          <span class="d">A4 纸带边框，可加页<br>适合正式笔记</span>
+        </button>
+        <button class="nb-style" data-style="inf">
+          <span class="ic">♾️</span><b>无限画布</b>
+          <span class="d">无边框，随便到处写<br>适合草稿和演算</span>
+        </button>
+      </div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end">
+        <button class="btn ghost small" data-act="cancel">取消</button>
+        <button class="btn small" data-act="ok">创建</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  const titleInput = mask.querySelector("#nbNewTitle");
+  titleInput.focus(); titleInput.select();
+  let style = "a4";
+  mask.addEventListener("click", e=>{
+    const s = e.target.closest(".nb-style");
+    if(s){
+      style = s.dataset.style;
+      mask.querySelectorAll(".nb-style").forEach(x=> x.classList.toggle("on", x===s));
+      return;
+    }
+    const b = e.target.closest("button[data-act]");
+    if(!b) return;
+    if(b.dataset.act === "cancel"){ mask.remove(); return; }
+    const title = titleInput.value.trim();
+    if(!title){ titleInput.focus(); return; }
+    mask.remove();
+    noteCreate(title, style);
+  });
+  titleInput.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      const title = titleInput.value.trim();
+      if(title){ mask.remove(); noteCreate(title, style); }
+    }
+  });
+}
+async function noteCreate(title, style){
+  const inf = style === "inf";
   const n = {
     id: "nb_" + Date.now(),
     title,
     cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
     createdAt: Date.now(), updatedAt: Date.now(),
-    pages: [{
-      id: "pg_" + Date.now().toString(36),
-      bgType: "blank", bgData: null,
-      w: INK_NB_W, h: INK_NB_H, grid: "dot",
-      layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}]
-    }]
+    pages: [ inf
+      ? { id: "pg_" + Date.now().toString(36),
+          bgType: "blank", bgData: null, infinite: true,
+          w: INK_INF_W, h: INK_INF_H, grid: "dot",
+          layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}] }
+      : { id: "pg_" + Date.now().toString(36),
+          bgType: "blank", bgData: null,
+          w: INK_NB_W, h: INK_NB_H, grid: "dot",
+          layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}] }
+    ]
   };
   await dbNotePut(n);
   renderNotes();
