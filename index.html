@@ -7,6 +7,12 @@
 <!-- PWA 相关配置 -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ffffff">
+<script>
+/* 主题要在首帧之前套上：主脚本在页面底部，等它跑完再换色会闪。
+   这里直接读 localStorage 抢先设置（读不到就是默认主题，零开销）。 */
+try{var _t=JSON.parse(localStorage.getItem("cyt_cfg")||"{}").theme;
+if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="错了没">
@@ -41,6 +47,61 @@
     --shadow-pop: 0 4px 14px rgba(43, 58, 74, 0.12), 0 2px 4px rgba(43, 58, 74, 0.08);
     --shadow-modal: 0 10px 30px rgba(43, 58, 74, 0.2);
   }
+  /* ---- 蜡笔小新主题：暖橙蜡笔风（小新的红T恤 + 黄帽子 + 向日葵） ---- */
+  [data-theme="shinchan"]{
+    --bg:#fdf3e2; 
+    --card:#fffdf8; 
+    --line:#e5b78c; 
+    --line-soft:#f3e3cc;
+    --text:#4a3628; 
+    --text-2:#7a6350; 
+    --muted:#a8927c;
+    --blue:#e0512c;              /* 主色换成小新的T恤红（语义名不改，免得动几百处引用） */
+    --blue-weak:#fdeae2; 
+    --green:#5fa04f; 
+    --green-weak:#eef6e6;
+    --red:#c73e58; 
+    --red-weak:#fceef1;
+    --amber:#e09c2f; 
+    --amber-weak:#fdf3dd;
+    --purple:#9a6bb5; 
+    --purple-weak:#f4ecf9;
+    --radius: 22px 16px 22px 16px/16px 22px 16px 22px;   /* 圆滚滚，不那么手绘歪扭 */
+    --radius-sm: 18px 12px 18px 12px/12px 18px 12px 18px;
+    --shadow-pop: 0 4px 14px rgba(74, 54, 40, 0.14), 0 2px 4px rgba(74, 54, 40, 0.09);
+    --shadow-modal: 0 10px 30px rgba(74, 54, 40, 0.24);
+  }
+  /* 背景涂鸦也换：小新的向日葵（蜡笔描边） */
+  [data-theme="shinchan"] body{
+    background:var(--bg) url('data:image/svg+xml;utf8,<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="%23f0dcbc" stroke-width="1.7" stroke-dasharray="5 3"><circle cx="36" cy="19" r="8"/><circle cx="53" cy="34" r="8"/><circle cx="45" cy="54" r="8"/><circle cx="27" cy="54" r="8"/><circle cx="19" cy="34" r="8"/></g><circle cx="36" cy="36" r="7" fill="%23f2dfc0"/></svg>') repeat;
+  }
+  /* ---- 蜡笔小新主题的角色装饰 ---- */
+  /* 标题旁的小新贴纸（默认主题不显示） */
+  .mascot{display:none}
+  [data-theme="shinchan"] .mascot-shin{display:block; width:52px; height:52px; margin-left:4px; flex:none;
+    transform-origin:50% 92%; animation:mascotBob 3.4s ease-in-out infinite}
+  [data-theme="shinchan"] .mascot-shin svg{width:100%; height:100%; display:block}
+  @keyframes mascotBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-4px) rotate(3deg)}}
+  /* 卡片角上的装饰：默认枫叶，小新主题换向日葵 */
+  [data-theme="shinchan"] .card::after{content:"🌻"}
+  /* 空状态：默认打瞌睡的表情，小新主题换小白（题库/列表空），复盘清零换动感超人 */
+  [data-theme="shinchan"] .empty::before{content:""; display:block; width:104px; height:80px;
+    margin:0 auto 12px; background:url("data:image/svg+xml;utf8,<svg viewBox='0 0 120 100' xmlns='http://www.w3.org/2000/svg'><ellipse cx='60' cy='93' rx='30' ry='5' fill='%23e9d4b4'/><path d='M30 90 C26 62 40 48 60 48 C80 48 94 62 90 90 Z' fill='%23ffffff' stroke='%234a3628' stroke-width='3'/><circle cx='60' cy='36' r='23' fill='%23ffffff' stroke='%234a3628' stroke-width='3'/><path d='M43 20 L37 6 L53 15 Z' fill='%23ffffff' stroke='%234a3628' stroke-width='3' stroke-linejoin='round'/><path d='M77 20 L83 6 L67 15 Z' fill='%23ffffff' stroke='%234a3628' stroke-width='3' stroke-linejoin='round'/><circle cx='52' cy='36' r='3' fill='%234a3628'/><circle cx='68' cy='36' r='3' fill='%234a3628'/><ellipse cx='60' cy='42' rx='3.2' ry='2.4' fill='%234a3628'/><path d='M55 48 Q60 52 65 48' fill='none' stroke='%234a3628' stroke-width='2.5' stroke-linecap='round'/><circle cx='42' cy='88' r='6' fill='%23ffffff' stroke='%234a3628' stroke-width='3'/><circle cx='78' cy='88' r='6' fill='%23ffffff' stroke='%234a3628' stroke-width='3'/></svg>") center/contain no-repeat}
+  [data-theme="shinchan"] #reviewList .empty::before{background-image:url("data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 5 L57 18 L43 18 Z' fill='%23f2b02c' stroke='%234a3628' stroke-width='2.5' stroke-linejoin='round'/><path d='M20 44 C20 24 36 14 50 14 C64 14 80 24 80 44 L80 58 C80 77 66 88 50 88 C34 88 20 77 20 58 Z' fill='%23e0512c' stroke='%234a3628' stroke-width='3'/><ellipse cx='37' cy='46' rx='9.5' ry='7' fill='%23ffffff' stroke='%234a3628' stroke-width='2.5'/><ellipse cx='63' cy='46' rx='9.5' ry='7' fill='%23ffffff' stroke='%234a3628' stroke-width='2.5'/><circle cx='38.5' cy='46.5' r='2.8' fill='%234a3628'/><circle cx='61.5' cy='46.5' r='2.8' fill='%234a3628'/><path d='M42 64 Q50 71 58 64' fill='none' stroke='%234a3628' stroke-width='3' stroke-linecap='round'/></svg>")}
+  /* 主题选择卡片 */
+  .theme-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .theme-pick{display:flex; flex-direction:column; align-items:center; gap:3px; padding:12px 10px 11px;
+    border:2px solid var(--line); border-radius:var(--radius-sm); background:var(--card);
+    cursor:pointer; font:inherit; position:relative}
+  .theme-pick.on{border-color:var(--blue); background:var(--blue-weak)}
+  .theme-pick b{font-size:14px; margin-top:2px}
+  .theme-pick .d{font-size:11.5px; color:var(--muted)}
+  .tp-preview{width:100%; height:62px; border-radius:10px; border:1.5px solid var(--line-soft); overflow:hidden; position:relative}
+  .tp-jiangan{background:linear-gradient(135deg,#eef3f7 55%,#dde9f3 55%)}
+  .tp-jiangan::after{content:"☁️"; position:absolute; right:8px; bottom:4px; font-size:22px; opacity:.75}
+  .tp-shin{background:linear-gradient(135deg,#fdf3e2 55%,#fde8dc 55%)}
+  .tp-shin::after{content:"🌻"; position:absolute; right:7px; bottom:3px; font-size:20px; opacity:.9}
+  .tp-shin .mini-shin{position:absolute; left:8px; bottom:2px; width:44px; height:44px}
   *{box-sizing:border-box; margin:0; padding:0}
   html{-webkit-text-size-adjust:100%}
   body{font-family:'Comic Sans MS', 'PingFang SC', 'Microsoft YaHei', 'Kaiti', cursive, sans-serif;
@@ -423,6 +484,20 @@
     </svg>
     <span>错了没</span>
   </h1>
+  <span class="mascot mascot-shin" aria-hidden="true"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="60" cy="113" rx="33" ry="5" fill="rgba(74,54,40,.14)"/>
+    <path d="M36 118 C36 98 45 88 60 88 C75 88 84 98 84 118 Z" fill="#e0512c" stroke="#4a3628" stroke-width="3"/>
+    <path d="M50 96 Q60 102 70 96" fill="none" stroke="#c23f20" stroke-width="2.5"/>
+    <circle cx="60" cy="52" r="35" fill="#ffdfbd" stroke="#4a3628" stroke-width="3"/>
+    <path d="M33 40 Q30 22 44 27 Q50 12 59 24 Q68 13 76 29 Q88 25 86 41" fill="none" stroke="#4a3628" stroke-width="3" stroke-linecap="round"/>
+    <rect x="38" y="42" width="17" height="5.5" rx="2.7" fill="#4a3628" transform="rotate(-9 46 44)"/>
+    <rect x="65" y="42" width="17" height="5.5" rx="2.7" fill="#4a3628" transform="rotate(9 73 44)"/>
+    <ellipse cx="50" cy="54" rx="3.6" ry="4.8" fill="#4a3628"/>
+    <ellipse cx="70" cy="54" rx="3.6" ry="4.8" fill="#4a3628"/>
+    <circle cx="40" cy="63" r="5" fill="#f7a08c" opacity=".65"/>
+    <circle cx="80" cy="63" r="5" fill="#f7a08c" opacity=".65"/>
+    <path d="M51 67 Q60 76 69 67 Z" fill="#b3452f" stroke="#4a3628" stroke-width="2.6" stroke-linejoin="round"/>
+  </svg></span>
   <nav id="nav">
     <button data-tab="add" class="active"><i>📝</i><em>录入</em></button>
     <button data-tab="review"><i>📅</i><em>复盘</em><span class="badge" id="dueBadge" style="display:none">0</span></button>
@@ -764,6 +839,33 @@ B. 1
       <button class="btn ghost small" id="btnTestRemind" title="弹一条看看效果">🔔 试一下</button>
     </div>
     <div class="muted" id="remindMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>🎨 主题</h2>
+    <div class="muted" style="margin-bottom:10px">
+      换整个界面的配色和装饰（主题是<b>本机设置</b>，打印练习纸保持正式版式，手写墨迹颜色不变）。
+    </div>
+    <div class="theme-grid" id="themeGrid">
+      <button class="theme-pick on" data-theme="">
+        <span class="tp-preview tp-jiangan"></span>
+        <b>江南烟雨</b><span class="d">蓝灰手绘 · 安静淡雅</span>
+      </button>
+      <button class="theme-pick" data-theme="shinchan">
+        <span class="tp-preview tp-shin"><svg class="mini-shin" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <path d="M36 118 C36 98 45 88 60 88 C75 88 84 98 84 118 Z" fill="#e0512c" stroke="#4a3628" stroke-width="4"/>
+          <circle cx="60" cy="52" r="35" fill="#ffdfbd" stroke="#4a3628" stroke-width="4"/>
+          <path d="M33 40 Q30 22 44 27 Q50 12 59 24 Q68 13 76 29 Q88 25 86 41" fill="none" stroke="#4a3628" stroke-width="4" stroke-linecap="round"/>
+          <rect x="38" y="42" width="17" height="6" rx="3" fill="#4a3628" transform="rotate(-9 46 44)"/>
+          <rect x="65" y="42" width="17" height="6" rx="3" fill="#4a3628" transform="rotate(9 73 44)"/>
+          <ellipse cx="50" cy="54" rx="4" ry="5" fill="#4a3628"/>
+          <ellipse cx="70" cy="54" rx="4" ry="5" fill="#4a3628"/>
+          <circle cx="40" cy="63" r="5.5" fill="#f7a08c" opacity=".65"/>
+          <circle cx="80" cy="63" r="5.5" fill="#f7a08c" opacity=".65"/>
+          <path d="M51 67 Q60 77 69 67 Z" fill="#b3452f" stroke="#4a3628" stroke-width="3" stroke-linejoin="round"/>
+        </svg></span>
+        <b>蜡笔小新</b><span class="d">暖橙蜡笔 · 元气满满</span>
+      </button>
+    </div>
   </div>
   <div class="card">
     <h2>科目</h2>
@@ -6204,6 +6306,26 @@ document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "visible") remindCheck();
 });
 remindSchedule(); remindStatus();
+
+/* ---------------- 主题 ----------------
+   CSS 变量整套切换（:root 默认 = 江南烟雨，[data-theme=shinchan] 覆盖）。
+   首帧之前 <head> 里的预应用脚本已经按 localStorage 套好了，这里只管
+   设置页的点击切换和高亮态。theme 不在同步字段里——审美是自己的事。 */
+function applyTheme(t){
+  if(t) document.documentElement.setAttribute("data-theme", t);
+  else document.documentElement.removeAttribute("data-theme");
+  document.querySelectorAll("#themeGrid .theme-pick").forEach(b=>
+    b.classList.toggle("on", (b.dataset.theme || "") === (cfg.theme || "")));
+}
+$("themeGrid").addEventListener("click", e=>{
+  const b = e.target.closest(".theme-pick");
+  if(!b) return;
+  cfg.theme = b.dataset.theme || "";
+  saveCfg();
+  applyTheme(cfg.theme);
+  toast(cfg.theme === "shinchan" ? "蜡笔小新上线啦！" : "已恢复江南烟雨");
+});
+applyTheme(cfg.theme);
 
 /* ---------------- 平板 APP 自更新 ----------------
    网页内容本来就会自动更新（壳加载的就是线上地址），这里只管壳本身：
