@@ -216,14 +216,42 @@ async function inkLassoShot(save){
 async function inkLassoToBank(){
   const st = inkPad;
   if(!st || !st.lasso){ toast("先圈选题目区域"); return; }
-  const cv = inkLassoCropCanvas(1500);
+  const cv = inkLassoCropCanvas(1000);
   if(!cv){ toast("选区太小，圈大一点"); return; }
-  const img = cv.toDataURL("image/jpeg", 0.85);
+  /* 截图压到 1000px / JPEG 0.7：一道题约 50-90KB。图片跟着题目进云端
+     （questions.json.gz），500 张截图约 30-40MB——GitHub 免费仓库没有容量
+     上限、单文件上限 100MB，安全；核对完想清理，题库编辑里删掉图即可。 */
+  const img = cv.toDataURL("image/jpeg", 0.7);
   if(!img || img.length < 2000){ toast("截图失败，请重试"); return; }
-  /* 科目默认第一个，可以改；图片题的题干留空，卡片会显示题目图片 */
-  const subject = (prompt("这道题属于哪个科目？", (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
+  const noteFolder = st.note ? (st.note.folder || "") : "";
+  /* 配了 AI：和批量导入同一条识别链（recognizeImages），题干/选项/答案/
+     解析结构化入库，截图留在 q.images 里随时核对。没配或失败：退回纯图片题。 */
+  if(cfg.base && cfg.key){
+    toast("🤖 AI 识别中…");
+    try{
+      const j = await recognizeImages([img]);
+      if(j && j.question){
+        await dbPut({
+          id: "q_" + Date.now(),
+          subject: subjList().includes(j.subject) ? j.subject : (noteFolder || subjList()[0] || "未分类"),
+          chapter: j.chapter || "", type: j.type || "题",
+          question: j.question || "",
+          options: Array.isArray(j.options) ? j.options.filter(o=>o && o.k) : [],
+          correctAns: j.correctAnswer || "", analysis: j.analysis || "",
+          images: [img],
+          reason: 0, difficulty: (j.difficulty >= 1 && j.difficulty <= 5) ? j.difficulty : 3,
+          createdAt: Date.now(), updatedAt: Date.now(),
+          reviews: [], failCount: 0, rightCount: 0
+        });
+        refreshBadge();
+        toast("AI 已识别入库，今天就可以复盘");
+        return;
+      }
+    }catch(e){ toast("AI 识别失败，改为只存图片题"); }
+  }
+  const subject = (prompt("这道题属于哪个科目？", noteFolder || (cfg.subjects && cfg.subjects[0]) || "未分类") || "").trim();
   if(!subject){ toast("已取消（没填科目）"); return; }
-  const q = {
+  await dbPut({
     id: "q_" + Date.now(),
     subject, type: "图片题",
     question: "", options: [], correctAns: "", analysis: "",
@@ -231,8 +259,7 @@ async function inkLassoToBank(){
     reason: 0, difficulty: 3,
     createdAt: Date.now(), updatedAt: Date.now(),
     reviews: [], failCount: 0, rightCount: 0
-  };
-  await dbPut(q);                 // dbPut 内部会 syncSoon()
+  });
   refreshBadge();
   toast("已存进错题库，今天就可以复盘它");
 }

@@ -13,8 +13,7 @@ async function renderNotes(){
     /* 文件夹从笔记数据里派生（note.folder 字段），不单独存一份——
        文件夹跟着笔记本身走云端同步，永远不会出现「列表里有文件夹但笔记里没有」。
        没有分类过的笔记库，这里算出来是空数组，界面就是原来那个平铺列表。 */
-    const folders = [...new Set(notes.map(n=>n.folder).filter(Boolean))]
-      .sort((a,b)=> a.localeCompare(b, "zh"));
+    const folders = noteFolderUnion(notes);
     const bar = $("noteFolders");
     if(bar){
       if(folders.length){
@@ -66,14 +65,41 @@ async function noteMove(id){
   const all = await dbNotesAll();
   const n = all.find(x=>x.id===id);
   if(!n) return;
-  const names = [...new Set(all.map(x=>x.folder).filter(Boolean))].join(" / ");
-  const msg = "放进哪个文件夹？\n（输入新名字会自动新建；留空 = 不分类）" + (names ? "\n现有：" + names : "");
-  const v = (prompt(msg, n.folder || "") || "").trim().slice(0, 12);
-  if(v === (n.folder || "")) return;
-  if(v){ n.folder = v; } else { delete n.folder; }
-  await dbNotePut(n);
-  renderNotes();
-  toast(v ? `已移入「${v}」` : "已移出文件夹");
+  const folders = await noteFolderList();
+  const cur = n.folder || "";
+  const mask = document.createElement("div");
+  mask.className = "nb-new-mask";
+  mask.innerHTML = `
+    <div class="card nb-new" style="width:min(360px,92vw)">
+      <h3 style="margin:0 0 12px">移到文件夹</h3>
+      <div class="nb-flist">${noteFolderRowsHTML(cur, folders)}</div>
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="btn ghost small" data-act="cancel">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.addEventListener("click", async e=>{
+    const f = e.target.closest(".nb-frow");
+    if(f){
+      if(f.dataset.f === "__new"){
+        const name = noteNewFolder();
+        if(name){
+          folders.length = 0; folders.push(...await noteFolderList());
+          mask.querySelector(".nb-flist").innerHTML = noteFolderRowsHTML(cur, folders);
+        }
+        return;
+      }
+      const v = f.dataset.f;
+      mask.remove();
+      if(v === cur) return;
+      if(v){ n.folder = v; } else { delete n.folder; }
+      await dbNotePut(n);
+      renderNotes();
+      toast(v ? `已移入「${v}」` : "已移出文件夹");
+      return;
+    }
+    if(e.target.closest("button[data-act='cancel']") || e.target === mask) mask.remove();
+  });
 }
 
 /* 封面 = 第一页缩略图。图片背景页先把图取出来再画，不然封面永远是一张白纸 */
@@ -98,16 +124,46 @@ async function noteEnsureBg(pg){
     });
   }catch(e){}
 }
-/* 新建笔记：选名字 + 选样式（标准 A4 分页 / 无限画布）。
-   原来是 prompt 一个名字直接建，样式没有选择的余地。 */
+/* 文件夹列表 = 本机建过的（cfg.folders，空文件夹也留着）∪ 笔记里实际用到的。
+   手动建的进 cfg；自动归类（练习纸进科目文件夹）的随笔记走云端。
+   两边取并集：空文件夹不会凭空消失，别的设备自动归的类这台也看得到。 */
+async function noteFolderList(){
+  return noteFolderUnion(await dbNotesAll());
+}
+function noteFolderUnion(notes){
+  const used = (notes || []).map(n=>n.folder).filter(Boolean);
+  return [...new Set([...(cfg.folders || []), ...used])]
+    .sort((a,b)=> a.localeCompare(b, "zh"));
+}
+/* 文件夹选择行（单选，点选不用打字——GoodNotes 式）。新建笔记和移动共用。 */
+function noteFolderRowsHTML(cur, folders){
+  const row = (name, label, icon)=>
+    `<button class="nb-frow${(cur||"") === name ? " on" : ""}" data-f="${esc(name)}">
+       <span>${icon} ${esc(label)}</span><span class="tick">${(cur||"") === name ? "●" : "○"}</span>
+     </button>`;
+  let html = row("", "不分类（放在最外层）", "\u{1F5D2}");
+  for(const f of folders) html += row(f, f, "\u{1F4C1}");
+  return html + `<button class="nb-frow nb-fnew" data-f="__new">\u{2795} 新建文件夹…</button>`;
+}
+function noteNewFolder(){
+  const name = (prompt("新文件夹叫什么名字？", "") || "").trim().slice(0, 12);
+  if(!name) return null;
+  cfg.folders = cfg.folders || [];
+  if(!cfg.folders.includes(name)){ cfg.folders.push(name); saveCfg(); }
+  return name;
+}
+/* 新建笔记：名称 + 从文件夹列表点选（或就地新建）+ 纸张样式 */
 async function noteNewBlank(){
   if(document.querySelector(".nb-new-mask")) return;
+  const folders = await noteFolderList();
   const mask = document.createElement("div");
   mask.className = "nb-new-mask";
   mask.innerHTML = `
     <div class="card nb-new">
       <h3 style="margin:0 0 12px">新建笔记</h3>
       <input id="nbNewTitle" class="nb-new-title" placeholder="笔记本名称" value="新建笔记" maxlength="40">
+      <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">放进哪个文件夹</div>
+      <div class="nb-flist" id="nbFolderList">${noteFolderRowsHTML("", folders)}</div>
       <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">纸张样式</div>
       <div class="nb-style-grid">
         <button class="nb-style on" data-style="a4">
@@ -125,14 +181,26 @@ async function noteNewBlank(){
       </div>
     </div>`;
   document.body.appendChild(mask);
+  const st = {folder: "", style: "a4"};
   const titleInput = mask.querySelector("#nbNewTitle");
+  const relist = ()=>{ mask.querySelector("#nbFolderList").innerHTML = noteFolderRowsHTML(st.folder, folders); };
   titleInput.focus(); titleInput.select();
-  let style = "a4";
-  mask.addEventListener("click", e=>{
-    const s = e.target.closest(".nb-style");
-    if(s){
-      style = s.dataset.style;
-      mask.querySelectorAll(".nb-style").forEach(x=> x.classList.toggle("on", x===s));
+  mask.addEventListener("click", async e=>{
+    const f = e.target.closest(".nb-frow");
+    if(f){
+      if(f.dataset.f === "__new"){
+        const name = noteNewFolder();
+        if(name){ folders.length = 0; folders.push(...await noteFolderList()); st.folder = name; relist(); }
+        return;
+      }
+      st.folder = f.dataset.f;
+      relist();
+      return;
+    }
+    const sy = e.target.closest(".nb-style");
+    if(sy){
+      st.style = sy.dataset.style;
+      mask.querySelectorAll(".nb-style").forEach(x=> x.classList.toggle("on", x===sy));
       return;
     }
     const b = e.target.closest("button[data-act]");
@@ -141,21 +209,22 @@ async function noteNewBlank(){
     const title = titleInput.value.trim();
     if(!title){ titleInput.focus(); return; }
     mask.remove();
-    noteCreate(title, style);
+    noteCreate(title, st.style, st.folder);
   });
   titleInput.addEventListener("keydown", e=>{
     if(e.key === "Enter"){
       e.preventDefault();
       const title = titleInput.value.trim();
-      if(title){ mask.remove(); noteCreate(title, style); }
+      if(title){ mask.remove(); noteCreate(title, st.style, st.folder); }
     }
   });
 }
-async function noteCreate(title, style){
+async function noteCreate(title, style, folder){
   const inf = style === "inf";
   const n = {
     id: "nb_" + Date.now(),
     title,
+    ...(folder ? {folder} : {}),
     cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
     createdAt: Date.now(), updatedAt: Date.now(),
     pages: [ inf

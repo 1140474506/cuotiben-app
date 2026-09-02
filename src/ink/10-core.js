@@ -70,8 +70,15 @@ function inkSavePref(){
     localStorage.setItem("cyt_inkpen", JSON.stringify({
       color: st.color, hlColor: st.hlColor,
       penW: st.penW, hlW: st.hlW, eraser: st.eraser,
-      eraseWhole: st.eraseWhole, snap: st.snap}));
+      eraseWhole: st.eraseWhole, snap: st.snap, haptic: st.haptic}));
   }catch(e){}
+}
+/* 落笔震动（手写笔反馈）。安卓 WebView 需要 APP 声明 VIBRATE 权限，
+   navigator.vibrate 才会真的震；不支持的环境就是安静地什么都不做。 */
+function inkHaptic(ms){
+  const st = inkPad;
+  if(!st || st.haptic === false) return;
+  if(navigator.vibrate) try{ navigator.vibrate(ms || 8); }catch(e){}
 }
 /* 旧版本存的是档位下标（width/hlWidth/eraser∈0..2），拉条时代存真实值。
    读档时顺手迁移，老用户无感升级。 */

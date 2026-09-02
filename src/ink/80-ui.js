@@ -73,6 +73,7 @@ function inkSettingsHTML(){
     <i class="ink-prev" style="height:${Math.min(15, hl ? v/2.7 : v*2.8).toFixed(1)}px"></i>
     <span class="ink-seg"></span>
     <button class="btn ghost small ${st.snap?"on":""}" data-act="snap" title="一笔画完的圆 / 方 / 直线自动摆正，写字不受影响">📐 整形</button>
+    <button class="btn ghost small ${st.haptic!==false?"on":""}" data-act="haptic" title="手写笔落笔时轻轻震一下（平板 APP 生效）">📳 震动</button>
     <span class="ink-seg"></span>
     <span class="lbl">输入</span>
     <button class="btn ghost small ink-in ${st.input==="auto"?"on":""}" data-in="auto" title="自动：认出手写笔后自动忽略手掌，双指仍可缩放">🤖 自动</button>
@@ -142,6 +143,7 @@ function inkBarAction(b){
       case "redo": return inkRedo();
       case "whole": st.eraseWhole = !st.eraseWhole; inkSavePref(); break;
       case "snap": st.snap = !st.snap; inkSavePref(); break;
+      case "haptic": st.haptic = st.haptic === false; inkSavePref(); if(st.haptic) inkHaptic(18); break;
       case "ldel": return inkLassoDelete();
       case "lbank": return inkLassoToBank();
       case "lcopy": return inkLassoShot(false);
@@ -430,6 +432,7 @@ function inkOpen(cfg2){
     eraser: pref.eraser ?? 22,
     eraseWhole: pref.eraseWhole ?? false,
     snap: pref.snap ?? false,
+    haptic: pref.haptic ?? true,
     snapAngle: false,
     predict: true,
     fingerPan: true,

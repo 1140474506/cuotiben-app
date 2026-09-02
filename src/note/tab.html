@@ -4,6 +4,7 @@
       <h3>我的笔记本</h3>
       <div style="display:flex; gap:8px">
         <button class="btn small" onclick="noteNewBlank()">➕ 新建笔记</button>
+        <button class="btn ghost small" onclick="if(noteNewFolder()) renderNotes()" title="建一个空文件夹，笔记可以随时移进去">📁＋ 新建文件夹</button>
         <button class="btn ghost small" onclick="noteImportPDF()">📄 导入 PDF</button>
       </div>
     </div>

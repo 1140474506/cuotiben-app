@@ -83,6 +83,16 @@
 .ink-thumb canvas{display:block; width:100%; border-radius:4px}
 .ink-thumb .cap{font-size:11px; color:var(--muted); text-align:center; font-weight:bold}
 
+/* 新建笔记弹窗：名称 + 文件夹点选 + 纸张样式 */
+.nb-flist{max-height:34vh; overflow:auto; display:flex; flex-direction:column; gap:5px}
+.nb-frow{display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:9px 12px; border:2px solid var(--line); border-radius:9px; background:var(--bg);
+  cursor:pointer; font:inherit; font-size:13.5px; text-align:left}
+.nb-frow .tick{color:var(--muted); font-size:11px}
+.nb-frow.on{border-color:var(--blue); background:var(--blue-weak)}
+.nb-frow.on .tick{color:var(--blue)}
+.nb-frow.nb-fnew{border-style:dashed; color:var(--muted)}
+
 /* 新建笔记弹窗：名称 + 纸张样式（A4 分页 / 无限画布） */
 .nb-new-mask{position:fixed; inset:0; z-index:180; background:rgba(20,28,40,.45);
   display:flex; align-items:center; justify-content:center; padding:20px}

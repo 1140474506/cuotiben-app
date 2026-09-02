@@ -198,7 +198,7 @@ function inkWireWrap(wrap){
   const startHold = ev=>{
     if(!INK_HOLD_MS) return;
     holdAt = {x:ev.clientX, y:ev.clientY};
-    holdRingT = setTimeout(()=>{ if(holdT && holdAt) inkHoldRing(true, holdAt.x, holdAt.y); }, 170);
+    holdRingT = setTimeout(()=>{ if(holdT && holdAt){ inkHoldRing(true, holdAt.x, holdAt.y); inkHaptic(18); } }, 170);
     holdT = setTimeout(()=>{
       holdT = 0; inkHoldRing(false);
       const st = st_(); if(!st || drawId < 0) return;
@@ -294,6 +294,7 @@ function inkWireWrap(wrap){
     /* 落笔 */
     const h = inkHitPage(st, e.clientX, e.clientY, true);
     if(!h) return;
+    if(e.pointerType === "pen") inkHaptic(8);   // 落笔轻震一下，像笔尖碰到纸
     const v = inkSampleV(st, e, h[1], h[2], e.timeStamp || performance.now());
     st._curPgIdx = h[0];
     st._curT0 = performance.now();
