@@ -552,6 +552,105 @@ button .ic-svg{width:1.2em; height:1.2em}
 .nb-card .sub{font-size:11.5px; color:var(--muted); font-weight:bold}
 .nb-card .del{position:absolute; top:6px; right:6px; padding:1px 6px; font-size:12px;
   background:rgba(255,255,255,.9)}
+/* ---- 卡片上的「⋯」+ 多选勾 ---- */
+.nb-card .del, .nb-more{position:absolute; top:6px; right:6px}
+.nb-more{width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--line); border-radius:8px; background:rgba(255,255,255,.92);
+  font-size:15px; font-weight:bold; color:var(--text-2); line-height:1}
+.nb-subcard .nb-more{top:8px; right:8px}
+.nb-card .del{padding:1px 7px; font-size:14px; line-height:1.3; background:rgba(255,255,255,.92)}
+.nb-tick{position:absolute; top:7px; left:7px; width:24px; height:24px; z-index:2;
+  display:flex; align-items:center; justify-content:center; border:2px solid var(--text);
+  border-radius:7px; background:#fff; color:transparent}
+/* 勾本身的颜色必须跟着框子走：.nb-subcard .ic-svg 给了图标一个固定的蓝色，
+   光在父元素上写 color 是继承不过来的（子元素自己有规则，优先级同级但更靠前也赢不了）。 */
+.nb-tick .ic-svg{width:16px; height:16px; color:inherit}
+/* 文件夹卡左上角是那个手绘"标签页"，勾放右上角，免得盖住文件夹图标 */
+.nb-subcard .nb-tick{left:auto; right:8px; top:8px}
+.nb-card.sel, .nb-subcard.sel{border-color:var(--blue); background:var(--blue-weak);
+  box-shadow:4px 4px 0 var(--blue-weak)}
+.nb-card.sel .nb-tick, .nb-subcard.sel .nb-tick{background:var(--blue); border-color:var(--blue); color:#fff}
+/* 选择态下别让卡片抬起/旋转：一片卡都在动，很难看清勾了哪几张 */
+.nb-card.sel:hover, .nb-subcard.sel:hover{transform:none}
+.nb-here{margin-left:auto}
+
+/* ---- 批量操作条：贴在底部（手机上让开底部导航）---- */
+.nb-batch{position:fixed; left:0; right:0; bottom:0; z-index:120;
+  background:rgba(255,255,255,.97); border-top:2px solid var(--text);
+  padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px))}
+@supports (backdrop-filter:blur(8px)){ .nb-batch{backdrop-filter:blur(8px)} }
+.nb-batch-in{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  max-width:1080px; margin:0 auto}
+.nb-batch-in>b{font-size:13.5px; white-space:nowrap}
+.nb-batch-btns{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-left:auto}
+@media (max-width:600px){
+  .nb-batch{bottom:calc(58px + env(safe-area-inset-bottom,0px)); padding:8px 10px}
+  .nb-batch-in>b{width:100%}
+  .nb-batch-btns{margin-left:0}
+}
+
+/* ---- 卡片菜单（⋯ / 右键 / 长按）---- */
+.nb-menu-wrap{position:fixed; inset:0; z-index:200}
+.nb-menu{position:fixed; min-width:168px; padding:6px; background:var(--card);
+  border:2px solid var(--text); border-radius:12px; box-shadow:4px 4px 0 var(--line-soft);
+  display:flex; flex-direction:column; gap:2px}
+.nb-menu button{display:flex; align-items:center; gap:9px; padding:9px 11px; border:0;
+  background:none; font:inherit; font-size:13.5px; color:var(--text); cursor:pointer;
+  border-radius:8px; text-align:left}
+.nb-menu button:hover{background:var(--blue-weak); color:var(--blue)}
+.nb-menu button.danger{color:var(--red)}
+.nb-menu button.danger:hover{background:var(--red-weak); color:var(--red)}
+
+/* ---- 多选一（删文件夹时问"里面的笔记怎么办"）---- */
+.nb-choose{display:flex; flex-direction:column; gap:9px}
+.nb-crow{display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  padding:12px 13px; border:2px solid var(--text); border-radius:var(--radius);
+  background:var(--card); cursor:pointer; font:inherit; text-align:left;
+  box-shadow:3px 3px 0 var(--line-soft)}
+.nb-crow:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line-soft)}
+.nb-crow b{font-size:14px}
+.nb-crow span{font-size:12px; color:var(--muted); line-height:1.5}
+.nb-crow.danger{border-color:var(--red)}
+.nb-crow.danger b{color:var(--red)}
+
+/* ---- 回收站 ---- */
+.nb-trash{max-height:46vh; overflow:auto; display:flex; flex-direction:column; gap:8px}
+.nb-trow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:9px 12px; border:2px solid var(--line); border-radius:var(--radius-sm); background:var(--bg)}
+.nb-trow .nm{font-weight:bold; font-size:13.5px}
+.nb-trow .sub{font-size:11.5px; color:var(--muted); font-weight:bold; margin-right:auto}
+@media (max-width:600px){
+  .nb-trow .sub{width:100%; margin-right:0}
+}
+/* ---- 笔记搜索框 ---- */
+.nb-searchbar{margin-bottom:10px}
+.nb-searchbar input{width:100%; padding:9px 13px; border:2px solid var(--line);
+  border-radius:var(--radius-sm); background:var(--card); font:inherit; font-size:13.5px;
+  box-shadow:2px 2px 0 var(--line-soft)}
+.nb-searchbar input:focus{outline:none; border-color:var(--blue); box-shadow:2px 2px 0 var(--blue-weak)}
+.nb-searchbar input::-webkit-search-cancel-button{cursor:pointer}
+
+/* ---- 今日待办卡 ---- */
+.todo-card{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.todo-card .todo-item{display:flex; align-items:center; gap:7px; padding:8px 13px;
+  border:2px solid var(--text); border-radius:var(--radius-sm); background:var(--card);
+  cursor:pointer; font:inherit; font-size:13px; font-weight:bold; color:var(--text);
+  box-shadow:2px 2px 0 var(--line)}
+.todo-card .todo-item:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--line)}
+.todo-card .todo-item.hot{border-color:var(--red); color:var(--red)}
+.todo-card .todo-item.hot .num{color:var(--red)}
+.todo-card .todo-item .num{font-size:16px}
+
+/* ---- 图层面板的行内小按钮 ---- */
+.ink-layer-row{display:flex; align-items:center; gap:4px}
+.ink-layer-row b{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  cursor:text; font-size:12.5px}
+.ink-layer-row .lyr-btn{width:24px; height:24px; flex:none; display:flex; align-items:center;
+  justify-content:center; border:1.5px solid var(--line); border-radius:6px; background:#fff;
+  cursor:pointer; color:var(--text-2); padding:0; font:inherit; font-size:12px; line-height:1}
+.ink-layer-row .lyr-btn:hover{border-color:var(--blue); color:var(--blue)}
+.ink-layer-row .lyr-btn .ic-svg{width:13px; height:13px}
+
 @media (max-width:600px){
   .ink-panel{width:min(78vw,240px)}
   .inkbar{gap:5px}
@@ -609,6 +708,9 @@ button .ic-svg{width:1.2em; height:1.2em}
 
 <!-- ============ 录入 ============ -->
 <section id="tab-add">
+  <div class="card" id="todoCard" style="padding:13px 15px">
+    <div class="todo-card" id="todoRow"><span class="muted" style="font-size:13px">加载中…</span></div>
+  </div>
   <div class="card">
     <h2>⓪ 从练习册导入（最省 token）</h2>
     <div class="muted" style="margin-bottom:10px">练习册上传后已在本地解析好全文。<b>推荐用下面的「浏览并勾选」</b>：本地扫描出全书题号（零 token），勾好一次性丢进后台识别，你可以马上去刷题。</div>
@@ -839,10 +941,12 @@ B. 1
       <h3>我的笔记本</h3>
       <span id="noteActions" class="row" style="gap:8px;flex-wrap:wrap"></span>
     </div>
-    <div class="muted" style="margin-bottom:10px">手写笔记：支持手写笔压感、防误触、图层、无限加页。导入 PDF 练习册就能直接在题目上写。</div>
+    <div class="muted" style="margin-bottom:10px">手写笔记：支持手写笔压感、防误触、图层、无限加页。导入 PDF 练习册就能直接在题目上写。<br>长按卡片可多选，批量改名 / 复制 / 移动 / 删除；点卡片右上角「⋯」管理单个。</div>
+    <div id="noteSearch" class="nb-searchbar"></div>
     <div id="noteFolders" class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div id="noteList" class="nb-grid"></div>
   </div>
+  <div id="noteBatch" class="nb-batch" hidden></div>
 </section>
 
 <section id="tab-book" hidden>
@@ -1156,7 +1260,7 @@ const $ = id => document.getElementById(id);
      · localStorage 键 "cyt_cfg"
      · 云端文件名 questions/books/config.json.gz 和仓库名本身 */
 const APP_NAME = "错了没";
-const APP_BUILD = "2026-09-03 00:04";   // 构建时间戳，build.py 注入；设置页的「检查更新」靠它对比线上版本
+const APP_BUILD = "2026-09-03 13:09";   // 构建时间戳，build.py 注入；设置页的「检查更新」靠它对比线上版本
 /* 版本号：改完代码必须 +1。浏览器对这个 HTML 有缓存，用户（包括我自己）
    在平板上测的经常是旧页面还以为新功能坏了——设置页最底下和 F12 控制台
    都能看到版本，先对版本再报 bug。 */
@@ -1204,6 +1308,13 @@ function normSubjects(v){
 }
 /* 所有读科目的地方都走这个函数，脏数据当场洗成合法数组 */
 function subjList(){ return normSubjects(cfg.subjects); }
+/* 笔记本文件夹（手动建的空文件夹也在里面）。跟着设置一起同步：文件夹现在能改名、
+   能删，只靠"从笔记的 folder 字段反推"的话，空文件夹和改名结果传不到另一台设备。
+   排好序再存，两台设备顺序不同不会被误判成"有改动"而互相顶着上传。 */
+function normFolders(v){
+  const a = Array.isArray(v) ? v.map(s=>String(s).split("/").map(x=>x.trim()).filter(Boolean).join("/")) : [];
+  return [...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,"zh"));
+}
 /* 四个下拉（录入 / 复盘 / 练习 / 题库筛选）从这里统一灌。
    保留当前选中值：科目列表从云端同步变化时不丢用户的选择。 */
 function fillSubjectSelects(){
@@ -1229,6 +1340,7 @@ let cfg = {base:"", key:"", model:"", textModel:"", intervals:DEF_INTERVALS.slic
 try{ const s = localStorage.getItem("cyt_cfg"); if(s) cfg = {...cfg, ...JSON.parse(s)}; }catch(e){}
 cfg.intervals = normIntervals(cfg.intervals);
 cfg.subjects = normSubjects(cfg.subjects);
+cfg.folders = normFolders(cfg.folders);
 /* 只填空缺项，不覆盖本机已有值。PRESET 补进来的值算"本机设置"，
    所以第一次同步会把它推到云端，另一台设备就跟着用同一个 AI。 */
 for(const k in PRESET) if(PRESET[k] && !cfg[k]) cfg[k] = PRESET[k];
@@ -1484,10 +1596,59 @@ async function dbNotePut(n, quiet){
   if(!quiet) syncSoon();
   return n;
 }
-/* 软删除：云端据此同步「删掉了这本」，30 天后才真正清掉记录 */
-async function dbNoteDel(id){
-  await dbNotePutRaw({id, deletedAt: Date.now(), updatedAt: Date.now()});
+function dbNoteGetRaw(id){
+  return new Promise((res, rej)=>{
+    const t = db.transaction("notebooks","readonly").objectStore("notebooks").get(id);
+    t.onsuccess = ()=> res(t.result);
+    t.onerror = ()=> rej(t.error);
+  });
+}
+/* 软删除。以前这里直接 put 一个只有 {id, deletedAt} 的墓碑——记录上的页和笔迹
+   当场就没了，「30 天后才真正清掉」只是清掉一个空壳，删错了没有任何找回的可能。
+   现在整本原样留着、只打删除标记：列表按 deletedAt 过滤掉，回收站里能原样恢复；
+   30 天后由 noteTrashSweep 剥成空墓碑（云端同步语义不变，但不再占本机空间）。 */
+async function dbNoteDel(id, quiet){
+  const cur = await dbNoteGetRaw(id).catch(()=>null);
+  const now = Date.now();
+  await dbNotePutRaw(cur ? {...cur, deletedAt: now, updatedAt: now}
+                         : {id, deletedAt: now, updatedAt: now});
+  if(!quiet) syncSoon();
+}
+/* 恢复：清掉标记 + 顶新 updatedAt，这样云端那份墓碑（updatedAt 更旧）合并时会输 */
+async function dbNoteRestore(id){
+  const cur = await dbNoteGetRaw(id);
+  if(!cur || !cur.pages || !cur.pages.length) return false;
+  delete cur.deletedAt;
+  cur.updatedAt = Date.now();
+  await dbNotePutRaw(cur);
   syncSoon();
+  return true;
+}
+/* 剥成空墓碑：本机不再留内容（不可恢复），但记录还在，另一台设备照样会跟着删。
+   这里刻意绕开 dbNotePutRaw——它会给记录补一个 pages:[]（notePlain 的固定动作），
+   而"有没有 pages"正是回收站判断能不能恢复的依据。 */
+async function dbNoteStrip(id){
+  const cur = await dbNoteGetRaw(id);
+  if(!cur) return;
+  await new Promise((res, rej)=>{
+    const t = db.transaction("notebooks","readwrite").objectStore("notebooks")
+      .put({id, title: cur.title || "", deletedAt: cur.deletedAt || Date.now(),
+            updatedAt: cur.updatedAt || Date.now()});
+    t.onsuccess = res; t.onerror = ()=> rej(t.error);
+  });
+  syncSoon();
+}
+/* 回收站：还带着内容的已删笔记，新删的在前 */
+async function dbNotesTrash(){
+  return (await dbNotesAllRaw())
+    .filter(n => n.deletedAt && n.pages && n.pages.length)
+    .sort((a,b)=> (b.deletedAt||0) - (a.deletedAt||0));
+}
+/* 上云前的裁剪：删掉的那本只传墓碑。回收站是本机的事，
+   没必要把几 MB 的已删笔迹在仓库里再留半年。 */
+function noteForCloud(n){
+  if(!n || !n.deletedAt) return n;
+  return {id: n.id, title: n.title || "", deletedAt: n.deletedAt, updatedAt: n.updatedAt || n.deletedAt};
 }
 async function dbNoteHardDel(id){
   return new Promise((res, rej)=>{
@@ -1553,14 +1714,85 @@ function noteFolderTree(notes){
 }
 const zhSort = (a, b) => a.localeCompare(b, "zh");
 
+/* ---- 搜索 + 排序 ----
+   搜标题，跨所有文件夹：找到比翻文件夹快。搜索态下忽略当前层，
+   卡片下标出所在文件夹，点开照常。排序只影响本层笔记卡的顺序。 */
+let nbSearch = "";
+const NB_SORTS = [
+  ["time", "按最近修改"], ["name", "按名称"], ["created", "按创建时间"], ["pages", "按页数"]
+];
+function nbSortKey(){ return NB_SORTS.some(s => s[0] === cfg.noteSort) ? cfg.noteSort : "time"; }
+function nbSortCycle(){
+  const i = NB_SORTS.findIndex(s => s[0] === nbSortKey());
+  cfg.noteSort = NB_SORTS[(i + 1) % NB_SORTS.length][0];
+  saveCfg();
+  renderNotes();
+  toast("排序：" + NB_SORTS.find(s => s[0] === nbSortKey())[1]);
+}
+function nbSortNotes(arr){
+  const k = nbSortKey();
+  const by = {
+    time:  (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || (b.createdAt || 0) - (a.createdAt || 0),
+    created: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    name:  (a, b) => (a.title || "未命名").localeCompare(b.title || "未命名", "zh"),
+    pages: (a, b) => ((b.pages || []).length) - ((a.pages || []).length)
+  }[k];
+  return [...arr].sort(by);
+}
+/* 搜索框：常驻在面包屑上方。输入防抖 200ms；renderNotes 会整块重画列表，
+   但搜索框在独立容器里，焦点和值不会被打断。 */
+(function(){
+  const bar = typeof $ !== "undefined" && $("noteSearch");
+  if(!bar) return;
+  bar.innerHTML = `<input id="nbSearchIn" type="search" placeholder="搜笔记本标题…" autocomplete="off">`;
+  const inp = bar.querySelector("#nbSearchIn");
+  let t = 0;
+  inp.addEventListener("input", ()=>{
+    clearTimeout(t);
+    t = setTimeout(()=>{
+      const v = inp.value.trim();
+      if(v === nbSearch) return;
+      nbSearch = v;
+      renderNotes();
+    }, 200);
+  });
+})();
+
 async function renderNotes(){
   const list = $("noteList");
   if(!list) return;
   list.innerHTML = "<div class='muted'>加载中...</div>";
+  noteTrashSweep();
+  noteActionsRender();
   try{
     const notes = await dbNotesAll();
+    const searching = nbSearch.length > 0;
+    if(searching){
+      /* 搜索模式：跨全部文件夹按标题过滤，卡片上标出所在文件夹 */
+      const kw = nbSearch.toLowerCase();
+      const hits = notes.filter(n => (n.title || "未命名").toLowerCase().includes(kw));
+      const bar2 = $("noteFolders");
+      if(bar2){ bar2.style.display = ""; bar2.innerHTML =
+        `<div class="nb-crumbs"><span class="crumb on">${icon("note")} 搜索「${esc(nbSearch)}」</span></div>`; }
+      list.innerHTML = hits.length ? nbSortNotes(hits).map(n=>`
+        <div class="nb-card${nbSelNotes.has(n.id) ? " sel" : ""}" data-id="${n.id}">
+          ${nbSelMode ? `<span class="nb-tick">${icon("check")}</span>` : ""}
+          <div class="nb-cover"><canvas width="292" height="264"></canvas></div>
+          <div class="nm">${esc(n.title || "未命名")}</div>
+          <div class="sub">${n.pages ? n.pages.length : 0} 页 · ${relTime(n.updatedAt)}${n.folder ? " · " + esc(n.folder) : ""}</div>
+          ${nbSelMode ? "" : `<button class="btn ghost small del" data-menu="note" data-id="${n.id}"
+             title="重命名 / 复制 / 移动 / 删除">⋯</button>`}
+        </div>`).join("")
+        : `<div class='muted'>没有标题带「${esc(nbSearch)}」的笔记</div>`;
+      const cvs = list.querySelectorAll(".nb-cover canvas");
+      nbSortNotes(hits).forEach((n, i)=>{ if(cvs[i]) noteCoverPaint(cvs[i], n); });
+      nbSelBar();
+      return;
+    }
     const tree = noteFolderTree(notes);
-    /* 面包屑：全部 › 数学 › 高数，点任意一段跳回去 */
+    /* 面包屑：全部 › 数学 › 高数，点任意一段跳回去。当前层不是根时右边挂上
+       这一层自己的操作（改名/复制/移动/删除）——文件夹卡只在父层看得见，
+       进来之后总得有个地方管它。 */
     const bar = $("noteFolders");
     if(bar){
       const segs = folderSegs(noteFolder);
@@ -1572,7 +1804,9 @@ async function renderNotes(){
           <button class="crumb${i === segs.length-1 ? " on" : ""}" data-folder="${esc(acc)}">${esc(segs[i])}</button>`;
       }
       bar.style.display = "";
-      bar.innerHTML = `<div class="nb-crumbs">${crumbs}</div>`;
+      bar.innerHTML = `<div class="nb-crumbs">${crumbs}</div>`
+        + (noteFolder ? `<button class="btn ghost small nb-here" data-menu="folder"
+             data-folder="${esc(noteFolder)}" title="管理这个文件夹">${icon("layers")} 管理这个文件夹</button>` : "");
     }
     if(noteFolder && !tree.child.has("") && !tree.child.has(noteFolder)
        && !notes.some(n => (n.folder||"") === noteFolder)) noteFolder = "";
@@ -1587,92 +1821,175 @@ async function renderNotes(){
           const f = n.folder || "";
           if(f === full || f.startsWith(full + "/")) c++;
         }
-        return `<button class="nb-subcard" data-folder="${esc(full)}">
-          ${icon("folder", "lg")}<b>${esc(k)}</b><span>${c} 篇</span></button>`;
+        return `<button class="nb-subcard${nbSelFolders.has(full) ? " sel" : ""}" data-folder="${esc(full)}">
+          ${nbSelMode ? `<span class="nb-tick">${icon("check")}</span>` : ""}
+          ${icon("folder", "lg")}<b>${esc(k)}</b><span>${c} 篇</span>
+          ${nbSelMode ? "" : `<span class="nb-more" data-menu="folder" data-folder="${esc(full)}"
+             title="重命名 / 复制 / 移动 / 删除">⋯</span>`}</button>`;
       }).join("") + `</div>`;
     }
-    /* 当前层的笔记（精确匹配本层路径） */
-    const shown = notes.filter(n => (n.folder || "") === noteFolder);
+    /* 当前层的笔记（精确匹配本层路径），按用户选的顺序排 */
+    const shown = nbSortNotes(notes.filter(n => (n.folder || "") === noteFolder));
     if(!shown.length && !kids.length){
-      list.innerHTML = `<div class='muted'>${noteFolder
+      list.innerHTML = html + `<div class='muted'>${noteFolder
         ? `「${esc(noteFolder.split("/").pop())}」还是空的。新笔记会建在这一层。`
         : "还没有笔记本。点右上角「新建」，或把 PDF / 图片分享进来。"}</div>`;
+      nbSelBar();
       return;
     }
     list.innerHTML = html + shown.map(n=>`
-      <div class="nb-card" onclick="noteOpen('${n.id}')">
+      <div class="nb-card${nbSelNotes.has(n.id) ? " sel" : ""}" data-id="${n.id}">
+        ${nbSelMode ? `<span class="nb-tick">${icon("check")}</span>` : ""}
         <div class="nb-cover"><canvas width="292" height="264"></canvas></div>
         <div class="nm">${esc(n.title || "未命名")}</div>
         <div class="sub">${n.pages ? n.pages.length : 0} 页 · ${relTime(n.updatedAt)}</div>
-        <button class="btn ghost small del" title="移到文件夹" onclick="event.stopPropagation(); noteMove('${n.id}')">${icon("folderPlus")}</button>
-        <button class="btn ghost small del" style="right:44px" title="删除" onclick="event.stopPropagation(); noteDelConfirm('${n.id}')">${icon("trash")}</button>
+        ${nbSelMode ? "" : `<button class="btn ghost small del" data-menu="note" data-id="${n.id}"
+           title="重命名 / 复制 / 移动 / 删除">⋯</button>`}
       </div>`).join("");
     const cvs = list.querySelectorAll(".nb-cover canvas");
     shown.forEach((n, i)=>{ if(cvs[i]) noteCoverPaint(cvs[i], n); });
+    nbSelBar();
   }catch(e){
     list.innerHTML = "<div class='muted'>加载失败，刷新试试</div>";
   }
 }
 /* 顶部操作按钮（SVG 图标在 JS 里渲染——tab 片段是静态 HTML 用不了模板函数） */
-(function(){
-  const el = typeof $ !== "undefined" && $("noteActions");
+async function noteActionsRender(){
+  const el = $("noteActions");
   if(!el) return;
+  let trash = 0;
+  try{ trash = (await dbNotesTrash()).length; }catch(e){}
   el.innerHTML =
     `<button class="btn small" onclick="noteNewBlank()">${icon("plus")} 新建笔记</button>
-     <button class="btn ghost small" onclick="if(noteNewFolder()) renderNotes()" title="在当前这层新建文件夹">${icon("folderPlus")} 新建文件夹</button>
-     <button class="btn ghost small" onclick="noteImportPDF()" title="导入 PDF 练习册，在题目上直接写">${icon("upload")} 导入 PDF</button>`;
-})();
+     <button class="btn ghost small" onclick="noteNewFolderHere()" title="在当前这层新建文件夹">${icon("folderPlus")} 新建文件夹</button>
+     <button class="btn ghost small" onclick="noteImportPDF()" title="导入 PDF 练习册，在题目上直接写">${icon("upload")} 导入 PDF</button>
+     <button class="btn ghost small" onclick="nbSortCycle()" title="${NB_SORTS.find(s => s[0] === nbSortKey())[1]}（点一下换一种）">${icon("grid")} ${NB_SORTS.find(s => s[0] === nbSortKey())[1]}</button>
+     <button class="btn ghost small" onclick="nbSelToggleMode()"
+       title="多选后批量改名 / 复制 / 移动 / 删除">${icon("check")} ${nbSelMode ? "退出选择" : "选择"}</button>
+     <button class="btn ghost small" onclick="noteTrashPanel()" title="30 天内删掉的笔记都能捞回来">${icon("trash")} 回收站${trash ? ` (${trash})` : ""}</button>`;
+}
 
-/* 面包屑和子文件夹卡的导航（容器常驻，内部重渲染不影响委托） */
+/* 面包屑 / 文件夹卡 / 笔记卡的统一交互（容器常驻，内部重渲染不影响委托）：
+   · 普通态：点卡片＝进文件夹 / 打开笔记，点「⋯」＝菜单，长按＝进多选
+   · 选择态：点卡片＝勾选，其余不动
+   长按用 pointerdown + 450ms 定时器实现；手指稍微一动（>10px）就取消，
+   免得滑动列表的时候莫名进了选择模式。 */
 (function(){
   const bar = typeof $ !== "undefined" && $("noteFolders");
   if(bar) bar.addEventListener("click", e=>{
+    const m = e.target.closest("[data-menu]");
+    if(m){ nbFolderMenu(m.dataset.folder, m); return; }
     const c = e.target.closest(".crumb");
     if(c && c.dataset.folder !== noteFolder){ noteFolder = c.dataset.folder || ""; renderNotes(); }
   });
   const list = typeof $ !== "undefined" && $("noteList");
-  if(list) list.addEventListener("click", e=>{
-    const c = e.target.closest(".nb-subcard");
-    if(c){ noteFolder = c.dataset.folder || ""; renderNotes(); }
+  if(!list) return;
+  let press = null, moved = false, lpAt = 0;
+  const cancel = ()=>{ if(press){ clearTimeout(press); press = null; } };
+  list.addEventListener("pointerdown", e=>{
+    const card = e.target.closest(".nb-card, .nb-subcard");
+    if(!card || e.target.closest("[data-menu]")) return;
+    moved = false;
+    const sx = e.clientX, sy = e.clientY;
+    const onMove = ev=>{
+      if(Math.abs(ev.clientX - sx) > 10 || Math.abs(ev.clientY - sy) > 10){ moved = true; cancel(); }
+    };
+    list.addEventListener("pointermove", onMove);
+    const stop = ()=>{
+      cancel();
+      list.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", stop, true);
+      document.removeEventListener("pointercancel", stop, true);
+    };
+    document.addEventListener("pointerup", stop, true);
+    document.addEventListener("pointercancel", stop, true);
+    press = setTimeout(()=>{
+      press = null;
+      if(moved) return;
+      /* 记时刻而不是"吞掉下一次 click"：长按后重画列表，抬手那一下的 click
+         有时压根不会派发（原元素已经没了），布尔标记就会一直挂着，把之后
+         某一次正常的点按白白吃掉。 */
+      lpAt = Date.now();
+      if(!nbSelMode) nbSelEnter();
+      const id = card.dataset.id;
+      (id ? nbSelNotes : nbSelFolders).add(id || card.dataset.folder);
+      if(navigator.vibrate) try{ navigator.vibrate(15); }catch(err){}
+      renderNotes();
+    }, 450);
+  });
+  list.addEventListener("click", e=>{
+    if(Date.now() - lpAt < 500) return;          // 长按刚处理过，忽略抬手带出来的 click
+    const m = e.target.closest("[data-menu]");
+    if(m && !nbSelMode){
+      if(m.dataset.menu === "folder") nbFolderMenu(m.dataset.folder, m);
+      else nbNoteMenu(m.dataset.id, m);
+      return;
+    }
+    const card = e.target.closest(".nb-card, .nb-subcard");
+    if(!card) return;
+    if(nbSelMode){ nbSelToggleCard(card); return; }
+    if(card.classList.contains("nb-subcard")){ noteFolder = card.dataset.folder || ""; renderNotes(); return; }
+    if(card.dataset.id) noteOpen(card.dataset.id);
+  });
+  /* 桌面右键 = 菜单（平板上用长按和「⋯」） */
+  list.addEventListener("contextmenu", e=>{
+    const card = e.target.closest(".nb-card, .nb-subcard");
+    if(!card || nbSelMode) return;
+    e.preventDefault();
+    if(card.dataset.id) nbNoteMenu(card.dataset.id, card);
+    else nbFolderMenu(card.dataset.folder, card);
   });
 })();
 
 /* 文件夹全量路径列表（选择器用）：笔记里实际用到的 ∪ 手动建的 */
 async function noteFolderList(){
-  const notes = await dbNotesAll();
-  return [...new Set([...(cfg.folders || []),
-      ...notes.map(n=>n.folder).filter(Boolean)])].sort(zhSort);
+  return nbAllFolders(await dbNotesAll());
 }
-/* 选择器行（两级树全部展开——层级浅，永远可见比折叠清晰） */
-function noteFolderRowsHTML(cur, folders){
-  const lv1 = [...new Set(folders.map(f=>folderSegs(f)[0]).filter(Boolean))].sort(zhSort);
-  const row = (p, label, ic, lvl)=>
-    `<button class="nb-frow${lvl ? " lvl2" : ""}${(cur||"") === p ? " on" : ""}" data-f="${esc(p)}">
-       <span>${ic} ${esc(label)}</span><span class="tick">${(cur||"") === p ? icon("check") : ""}</span>
-     </button>`;
-  let html = row("", "不分类（放在最外层）", icon("note"));
-  for(const a of lv1){
-    html += row(a, a, icon("folder"));
-    const kids = [...new Set(folders.filter(f=>folderSegs(f).length > 1 && folderSegs(f)[0] === a)
-      .map(f=>folderSegs(f)[1]))].sort(zhSort);
-    for(const b of kids) html += row(a + "/" + b, b, icon("folder"), 1);
+/* 选择器行：整棵树递归展开（层级浅，永远可见比折叠清晰）。
+   opts.skip(path) 为真的整条分支不出现（移动文件夹时排除自己的子树）。 */
+function noteFolderRowsHTML(cur, folders, opts){
+  opts = opts || {};
+  const skip = opts.skip || (()=> false);
+  const kidsOf = new Map();
+  for(const f of folders){
+    const segs = folderSegs(f);
+    for(let i = 0; i < segs.length; i++){
+      const parent = segs.slice(0, i).join("/");
+      if(!kidsOf.has(parent)) kidsOf.set(parent, new Set());
+      kidsOf.get(parent).add(segs.slice(0, i + 1).join("/"));
+    }
   }
-  return html + `<button class="nb-frow nb-fnew" data-f="__new">${icon("plus")} 新建文件夹…</button>`;
+  const row = (p, label, ic, lvl)=>
+    `<button class="nb-frow${lvl ? " lvl2" : ""}${(cur || "") === p ? " on" : ""}"
+       data-act="${p === "" ? "__root" : esc(p)}" data-f="${esc(p)}"
+       ${lvl ? `style="margin-left:${lvl * 22}px"` : ""}>
+       <span>${ic} ${esc(label)}</span><span class="tick">${(cur || "") === p ? icon("check") : ""}</span>
+     </button>`;
+  let html = row("", opts.rootLabel || "不分类（放在最外层）", icon("note"), 0);
+  const walk = (parent, lvl)=>{
+    for(const full of [...(kidsOf.get(parent) || [])].sort(zhSort)){
+      if(skip(full)) continue;
+      html += row(full, folderSegs(full).pop(), icon("folder"), lvl);
+      walk(full, lvl + 1);
+    }
+  };
+  walk("", 0);
+  return html + (opts.noNew ? ""
+    : `<button class="nb-frow nb-fnew" data-act="__new" data-f="__new">${icon("plus")} 新建文件夹…</button>`);
 }
-/* 新建文件夹：建在当前正在浏览的这一层 */
-function noteNewFolder(){
-  const label = noteFolder ? `在「${noteFolder.split("/").pop()}」里新建文件夹，叫什么？` : "新文件夹叫什么名字？";
-  const name = (prompt(label, "") || "").trim().slice(0, 12);
-  if(!name) return null;
-  const full = noteFolder ? noteFolder + "/" + name : name;
-  cfg.folders = cfg.folders || [];
-  if(!cfg.folders.includes(full)){ cfg.folders.push(full); saveCfg(); }
-  return full;
+/* 在当前浏览的这一层新建文件夹 */
+async function noteNewFolderHere(){
+  if(await nbFolderNamePrompt(noteFolder)) renderNotes();
 }
 /* 新建笔记：名称 + 文件夹树点选 + 纸张样式。默认建在当前层。 */
 async function noteNewBlank(){
   if(document.querySelector(".nb-new-mask")) return;
   const folders = await noteFolderList();
+  /* 记住上次的选择（纸张 + 文件夹）：连着建好几本时不用每次都重选 */
+  let pref = {};
+  try{ pref = JSON.parse(localStorage.getItem("nb_new_pref") || "{}"); }catch(e){}
+  if(pref.folder !== undefined && (pref.folder === "" || folders.includes(pref.folder))) {} else pref.folder = noteFolder;
+  if(pref.style !== "inf" && pref.style !== "a4") pref.style = "a4";
   const mask = document.createElement("div");
   mask.className = "nb-new-mask";
   mask.innerHTML = `
@@ -1680,14 +1997,14 @@ async function noteNewBlank(){
       <h3 style="margin:0 0 12px">新建笔记</h3>
       <input id="nbNewTitle" class="nb-new-title" placeholder="笔记本名称" value="新建笔记" maxlength="40">
       <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">放进哪个文件夹</div>
-      <div class="nb-flist" id="nbFolderList">${noteFolderRowsHTML(noteFolder, folders)}</div>
+      <div class="nb-flist" id="nbFolderList">${noteFolderRowsHTML(pref.folder, folders)}</div>
       <div class="lbl" style="margin:12px 0 6px;font-size:12.5px;color:var(--muted);font-weight:bold">纸张样式</div>
       <div class="nb-style-grid">
-        <button class="nb-style on" data-style="a4">
+        <button class="nb-style${pref.style === "inf" ? "" : " on"}" data-style="a4">
           <span class="ic">${icon("doc", "lg")}</span><b>标准分页</b>
           <span class="d">A4 纸带边框，可加页<br>适合正式笔记</span>
         </button>
-        <button class="nb-style" data-style="inf">
+        <button class="nb-style${pref.style === "inf" ? " on" : ""}" data-style="inf">
           <span class="ic">${icon("infinity", "lg")}</span><b>无限画布</b>
           <span class="d">无边框，随便到处写<br>适合草稿和演算</span>
         </button>
@@ -1698,7 +2015,7 @@ async function noteNewBlank(){
       </div>
     </div>`;
   document.body.appendChild(mask);
-  const st = {folder: noteFolder, style: "a4"};
+  const st = {folder: pref.folder, style: pref.style};
   const titleInput = mask.querySelector("#nbNewTitle");
   const relist = ()=>{ mask.querySelector("#nbFolderList").innerHTML = noteFolderRowsHTML(st.folder, folders); };
   titleInput.focus(); titleInput.select();
@@ -1706,7 +2023,7 @@ async function noteNewBlank(){
     const f = e.target.closest(".nb-frow");
     if(f){
       if(f.dataset.f === "__new"){
-        const name = noteNewFolder();
+        const name = await nbFolderNamePrompt(st.folder);
         if(name){ folders.length = 0; folders.push(...await noteFolderList()); st.folder = name; relist(); }
         return;
       }
@@ -1726,20 +2043,25 @@ async function noteNewBlank(){
     const title = titleInput.value.trim();
     if(!title){ titleInput.focus(); return; }
     mask.remove();
+    try{ localStorage.setItem("nb_new_pref", JSON.stringify({style: st.style, folder: st.folder})); }catch(err){}
     noteCreate(title, st.style, st.folder);
   });
   titleInput.addEventListener("keydown", e=>{
     if(e.key === "Enter"){
       e.preventDefault();
       const title = titleInput.value.trim();
-      if(title){ mask.remove(); noteCreate(title, st.style, st.folder); }
+      if(title){
+        mask.remove();
+        try{ localStorage.setItem("nb_new_pref", JSON.stringify({style: st.style, folder: st.folder})); }catch(err){}
+        noteCreate(title, st.style, st.folder);
+      }
     }
   });
 }
 async function noteCreate(title, style, folder){
   const inf = style === "inf";
   const n = {
-    id: "nb_" + Date.now(),
+    id: nbNewId("nb"),
     title,
     ...(folder ? {folder} : {}),
     cover: ["#5c88ff","#4ade80","#ff7070","#fbbf24","#a855f7"][Math.floor(Math.random()*5)],
@@ -1755,15 +2077,10 @@ async function noteCreate(title, style, folder){
           layers: [{id: "l1", name: "图层 1", visible: true, strokes: []}] }
     ]
   };
+  if(folder){ nbNoteFolder(folder); nbSaveFolders(); }
   await dbNotePut(n);
   renderNotes();
   noteOpen(n.id);
-}
-async function noteDelConfirm(id){
-  if(!confirm("确定删除这本笔记？删除后其他设备下次同步时也会一并删掉。")) return;
-  if(inkPad && inkPad.note && inkPad.note.id === id) noteClose();
-  await dbNoteDel(id);
-  renderNotes();
 }
 /* ---- 打开 / 关闭 ---- */
 let currentNote = null;
@@ -1771,6 +2088,9 @@ async function noteOpen(id){
   const n = (await dbNotesAll()).find(x => x.id === id);
   if(!n){ toast("这本笔记不存在了"); renderNotes(); return; }
   currentNote = n;
+  /* 记下"最近在写的这本"：被打断（app 被杀 / 手动刷新）之后，
+     首页待办卡上有一键续写，不用一路点回这里。 */
+  try{ localStorage.setItem("nb_last_open", JSON.stringify({id})); }catch(e){}
   for(const pg of n.pages||[]){
     if(!Array.isArray(pg)){
       if(!pg.w && pg.width) pg.w = pg.width;
@@ -1793,46 +2113,20 @@ async function noteClose(){
   inkClose();
   if(!$("tab-note") || !$("tab-note").hidden) renderNotes();
 }
-/* 移到文件夹：两级树点选（在当前层基础上选，取消 = 移出） */
+/* 移到文件夹：整棵树点选（就地能新建），选中即生效 */
 async function noteMove(id){
-  const all = await dbNotesAll();
-  const n = all.find(x=>x.id===id);
-  if(!n) return;
-  const folders = await noteFolderList();
+  const notes = await dbNotesAll();
+  const n = notes.find(x=>x.id===id) || (currentNote && currentNote.id === id ? currentNote : null);
+  if(!n){ toast("这本笔记不存在了"); renderNotes(); return; }
   const cur = n.folder || "";
-  const mask = document.createElement("div");
-  mask.className = "nb-new-mask";
-  mask.innerHTML = `
-    <div class="card nb-new" style="width:min(380px,92vw)">
-      <h3 style="margin:0 0 12px">移到文件夹</h3>
-      <div class="nb-flist">${noteFolderRowsHTML(cur, folders)}</div>
-      <div class="row" style="margin-top:12px;justify-content:flex-end">
-        <button class="btn ghost small" data-act="cancel">取消</button>
-      </div>
-    </div>`;
-  document.body.appendChild(mask);
-  mask.addEventListener("click", async e=>{
-    const f = e.target.closest(".nb-frow");
-    if(f){
-      if(f.dataset.f === "__new"){
-        const name = noteNewFolder();
-        if(name){
-          folders.length = 0; folders.push(...await noteFolderList());
-          mask.querySelector(".nb-flist").innerHTML = noteFolderRowsHTML(cur, folders);
-        }
-        return;
-      }
-      const v = f.dataset.f;
-      mask.remove();
-      if(v === cur) return;
-      if(v){ n.folder = v; } else { delete n.folder; }
-      await dbNotePut(n);
-      renderNotes();
-      toast(v ? `已移入「${v}」` : "已移出文件夹");
-      return;
-    }
-    if(e.target.closest("button[data-act='cancel']") || e.target === mask) mask.remove();
+  const dst = await nbFolderPicker(`把「${n.title || "未命名"}」移到哪`, cur, nbAllFolders(notes), {
+    notes, newIn: cur
   });
+  if(dst === null || dst === cur) return;
+  if(dst){ n.folder = dst; nbNoteFolder(dst); nbSaveFolders(); } else { delete n.folder; }
+  await dbNotePut(n);
+  renderNotes();
+  toast(dst ? `已移入「${folderName(dst)}」` : "已移出文件夹");
 }
 
 /* 封面 = 第一页缩略图。图片背景页先把图取出来再画，不然封面永远是一张白纸 */
@@ -1855,6 +2149,719 @@ async function noteEnsureBg(pg){
       img.src = rec.data;
       pg._img = img;
     });
+  }catch(e){}
+}
+/* ---- 笔记本 / 文件夹管理：改名、复制、移动、删除、多选批量、回收站 ----
+   文件夹在这套数据里不是一张表，它就是笔记上的一段路径（note.folder）加
+   cfg.folders 里的一条记录（为了让空文件夹不消失）。所以「改名文件夹」= 批量
+   换前缀，「删文件夹」= 决定里面的笔记怎么办，两处都得一起动，漏一处就会出现
+   「文件夹还在但点进去是空的」或者「笔记指向一个不存在的路径」。
+   下面所有写库都走 dbNotePut(n, true) 静默保存，最后统一 syncSoon() 一次，
+   免得批量改 50 本笔记打 50 次同步防抖。 */
+
+const NB_MAX_DEPTH = 3;          // 文件夹最深三层，再深在平板上点不过来
+let nbSeq = 0;                   // 同一毫秒内连续复制，靠它保证 id 不撞
+
+function nbNewId(pre){
+  return (pre || "nb") + "_" + Date.now().toString(36) + (nbSeq++).toString(36)
+    + Math.random().toString(36).slice(2, 5);
+}
+const folderParent = p => folderSegs(p).slice(0, -1).join("/");
+const folderName = p => folderSegs(p).pop() || "";
+const folderJoin = (a, b) => (a ? a + "/" + b : b);
+/* p 在 root 这棵子树里（root="" 时人人都算，调用处自己判空） */
+const folderUnder = (p, root) => !!root && (p === root || p.startsWith(root + "/"));
+/* 改前缀：把 p 里的 root 段换成 dst，保留后面的相对路径 */
+const folderRebase = (p, root, dst) => dst + p.slice(root.length);
+
+function nbSaveFolders(){
+  cfg.folders = normFolders(cfg.folders);
+  saveCfg();
+}
+/* 记下一个文件夹路径（连同它的每一层祖先），空文件夹才不会一刷新就没了 */
+function nbNoteFolder(path){
+  if(!path) return;
+  cfg.folders = cfg.folders || [];
+  const segs = folderSegs(path);
+  for(let i = 0; i < segs.length; i++){
+    const full = segs.slice(0, i + 1).join("/");
+    if(!cfg.folders.includes(full)) cfg.folders.push(full);
+  }
+}
+/* 全部已知路径（笔记里用到的 ∪ 手动建的 ∪ 它们的祖先） */
+function nbAllFolders(notes){
+  const set = new Set();
+  const add = f => {
+    const segs = folderSegs(f);
+    for(let i = 0; i < segs.length; i++) set.add(segs.slice(0, i + 1).join("/"));
+  };
+  for(const f of (cfg.folders || [])) add(f);
+  for(const n of (notes || [])) add(n.folder || "");
+  return [...set].sort(zhSort);
+}
+/* 「数学」已存在时给出「数学 副本」「数学 副本 2」…（同层内不重名） */
+function nbUniqueName(base, taken){
+  const has = s => taken.some(t => t === s);
+  if(!has(base)) return base;
+  let cand = base + " 副本";
+  for(let i = 2; has(cand); i++) cand = base + " 副本 " + i;
+  return cand;
+}
+/* ---- 通用弹窗 ----
+   系统 prompt/confirm 在 APP 的 WebView 里是另一套视觉，而且没法带选项
+   （删文件夹要问"里面的笔记怎么办"）。这里统一成应用自己的手绘风弹窗，
+   Esc / 点空白 = 取消，回车 = 主操作。 */
+function nbModal(html, opts){
+  opts = opts || {};
+  return new Promise(res=>{
+    const mask = document.createElement("div");
+    mask.className = "nb-new-mask";
+    mask.innerHTML = `<div class="card nb-new" style="width:min(${opts.w || 400}px,94vw)">${html}</div>`;
+    document.body.appendChild(mask);
+    let done = false;
+    const close = v =>{
+      if(done) return;
+      done = true;
+      document.removeEventListener("keydown", onKey, true);
+      mask.remove();
+      res(v);
+    };
+    const onKey = e =>{
+      if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); close(null); }
+      else if(e.key === "Enter" && opts.enter){ e.preventDefault(); close(opts.enter(mask)); }
+    };
+    document.addEventListener("keydown", onKey, true);
+    mask.addEventListener("click", e=>{
+      if(e.target === mask){ close(null); return; }
+      const b = e.target.closest("button[data-act]");
+      if(!b) return;
+      if(b.dataset.act === "cancel"){ close(null); return; }
+      close(opts.act ? opts.act(b.dataset.act, mask) : b.dataset.act);
+    });
+    if(opts.ready) opts.ready(mask);
+  });
+}
+/* 单行输入。返回 trim 后的字符串，取消/留空都返回 null */
+function nbPrompt(title, value, opts){
+  opts = opts || {};
+  const val = m => m.querySelector("#nbPromptIn").value.trim().slice(0, opts.max || 40) || null;
+  return nbModal(`
+    <h3 style="margin:0 0 10px">${esc(title)}</h3>
+    ${opts.desc ? `<div class="muted" style="font-size:12.5px;margin:-6px 0 10px">${opts.desc}</div>` : ""}
+    <input id="nbPromptIn" class="nb-new-title" maxlength="${opts.max || 40}"
+           placeholder="${esc(opts.ph || "")}" value="${esc(value || "")}">
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn ghost small" data-act="cancel">取消</button>
+      <button class="btn small" data-act="ok">${esc(opts.ok || "确定")}</button>
+    </div>`, {
+    w: 390,
+    ready: m =>{ const i = m.querySelector("#nbPromptIn"); i.focus(); i.select(); },
+    enter: val,
+    act: (a, m) => a === "ok" ? val(m) : null
+  });
+}
+/* 确认框。danger=true 时主按钮是红的（删除类操作） */
+function nbConfirm(title, desc, opts){
+  opts = opts || {};
+  return nbModal(`
+    <h3 style="margin:0 0 8px">${esc(title)}</h3>
+    <div class="muted" style="font-size:13px;line-height:1.6">${desc || ""}</div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn ghost small" data-act="cancel">${esc(opts.cancel || "取消")}</button>
+      <button class="btn small ${opts.danger ? "red" : ""}" data-act="ok">${esc(opts.ok || "确定")}</button>
+    </div>`, {w: 400, enter: ()=> "ok"}).then(v => v === "ok");
+}
+/* 多选一。opts.rows = [{k, t, d, danger}]，点哪张卡就返回哪个 k */
+function nbChoose(title, desc, rows){
+  return nbModal(`
+    <h3 style="margin:0 0 8px">${esc(title)}</h3>
+    ${desc ? `<div class="muted" style="font-size:12.5px;line-height:1.6;margin-bottom:12px">${desc}</div>` : ""}
+    <div class="nb-choose">
+      ${rows.map(r=>`<button class="nb-crow${r.danger ? " danger" : ""}" data-act="${r.k}">
+        <b>${esc(r.t)}</b><span>${esc(r.d || "")}</span></button>`).join("")}
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn ghost small" data-act="cancel">取消</button>
+    </div>`, {w: 420});
+}
+/* ---- 文件夹选择器（移动 / 复制到 / 新建时选位置）----
+   递归渲染整棵树。skip(path) 为真的分支整条不显示——移动文件夹时不能选自己
+   和自己的子孙（选了就是把文件夹塞进自己肚子里）。
+   返回：选中的路径（""＝最外层），取消返回 null。 */
+async function nbFolderPicker(title, cur, folders, opts){
+  opts = opts || {};
+  for(;;){
+    const v = await nbModal(`
+      <h3 style="margin:0 0 10px">${esc(title)}</h3>
+      ${opts.desc ? `<div class="muted" style="font-size:12.5px;margin:-6px 0 10px">${esc(opts.desc)}</div>` : ""}
+      <div class="nb-flist">${noteFolderRowsHTML(cur, folders, opts)}</div>
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="btn ghost small" data-act="cancel">取消</button>
+      </div>`, {w: 400});
+    if(v === null) return null;
+    if(v === "__new"){
+      /* 就地新建：建完把新文件夹选上，选择器重开一次（列表要带上它） */
+      const full = await nbFolderNamePrompt(opts.newIn || "");
+      if(full){
+        folders.length = 0;
+        folders.push(...nbAllFolders(opts.notes || await dbNotesAll()));
+        cur = full;
+      }
+      continue;
+    }
+    return v === "__root" ? "" : v;
+  }
+}
+/* 在 parent 下新建文件夹（同层重名直接拒绝，免得出现两个同名卡片） */
+async function nbFolderNamePrompt(parent){
+  if(folderSegs(parent).length >= NB_MAX_DEPTH){
+    toast(`最多 ${NB_MAX_DEPTH} 层文件夹`);
+    return null;
+  }
+  const label = parent ? `在「${folderName(parent)}」里新建文件夹` : "新建文件夹";
+  const name = await nbPrompt(label, "", {max: 16, ph: "文件夹名称"});
+  if(!name) return null;
+  if(name.includes("/")){ toast("名字里不能有斜杠"); return null; }
+  const full = folderJoin(parent, name);
+  const notes = await dbNotesAll();
+  if(nbAllFolders(notes).includes(full)){ toast(`这一层已经有「${name}」了`); return null; }
+  nbNoteFolder(full);
+  nbSaveFolders();
+  return full;
+}
+/* ---- 单本笔记：改名 / 复制 / 移动 / 删除 ---- */
+/* 正开着写的那本，内存里的对象才是最新的（笔迹还没落库），别拿库里那份去覆盖 */
+async function nbGetNote(id, notes){
+  if(currentNote && currentNote.id === id) return currentNote;
+  return (notes || await dbNotesAll()).find(x => x.id === id) || null;
+}
+async function noteRename(id){
+  const n = await nbGetNote(id);
+  if(!n){ toast("这本笔记不存在了"); renderNotes(); return; }
+  const name = await nbPrompt("笔记本改名", n.title || "", {ph: "笔记本名称"});
+  if(!name || name === n.title) return;
+  n.title = name;
+  await dbNotePut(n);
+  if(inkPad && inkPad.note && inkPad.note.id === id){
+    inkPad.note.title = name;
+    const t = inkPad.fs && inkPad.fs.querySelector(".inkfs-top .ink-name");
+    if(t) t.textContent = name;
+  }
+  renderNotes();
+  toast("已改名");
+}
+/* 深拷贝一本。页 / 图层换新 id（同一本里 id 撞了图层面板会认错），
+   背景图记录（nb_files 里的 bgData）刻意共用：那是几 MB 的图，复制一份纯浪费，
+   而云端孤儿清理是按"有没有笔记引用"算的，共用不会被误删。 */
+function noteCloneObj(n, title, folder){
+  const o = JSON.parse(JSON.stringify(notePlain(n)));
+  o.id = nbNewId("nb");
+  if(title !== undefined) o.title = title;
+  if(folder !== undefined){ if(folder) o.folder = folder; else delete o.folder; }
+  o.createdAt = Date.now();
+  o.updatedAt = Date.now();
+  delete o.deletedAt;
+  for(const pg of (o.pages || [])){
+    if(Array.isArray(pg)) continue;
+    pg.id = nbNewId("pg");
+    for(const l of (pg.layers || [])) l.id = nbNewId("l");
+  }
+  return o;
+}
+async function noteDup(id, quiet){
+  const notes = await dbNotesAll();
+  const n = (currentNote && currentNote.id === id) ? currentNote : notes.find(x => x.id === id);
+  if(!n) return null;
+  const folder = n.folder || "";
+  const taken = notes.filter(x => (x.folder || "") === folder).map(x => x.title || "");
+  const c = noteCloneObj(n, nbUniqueName(n.title || "未命名", taken));
+  await dbNotePut(c, quiet);
+  return c;
+}
+async function noteDupOne(id){
+  const c = await noteDup(id);
+  if(!c){ toast("这本笔记不存在了"); return; }
+  renderNotes();
+  toast(`已复制为「${c.title}」`);
+}
+async function noteDelConfirm(id){
+  const n = await nbGetNote(id);
+  if(!n){ renderNotes(); return; }
+  const pages = (n.pages || []).length;
+  const ok = await nbConfirm(`删除「${esc(n.title || "未命名")}」？`,
+    `${pages} 页笔记会进回收站，30 天内可以恢复。<br>其他设备下次同步时也会一并删掉。`,
+    {ok: "移到回收站", danger: true});
+  if(!ok) return;
+  if(inkPad && inkPad.note && inkPad.note.id === id) noteClose();
+  await dbNoteDel(id);
+  renderNotes();
+  toast("已移到回收站");
+}
+/* ---- 文件夹：改名 / 复制 / 移动 / 删除 ---- */
+async function folderRename(path){
+  if(!path) return;
+  const cur = folderName(path);
+  const name = await nbPrompt("文件夹改名", cur, {max: 16, ph: "文件夹名称"});
+  if(!name || name === cur) return;
+  if(name.includes("/")){ toast("名字里不能有斜杠"); return; }
+  const dst = folderJoin(folderParent(path), name);
+  const notes = await dbNotesAll();
+  if(nbAllFolders(notes).includes(dst)){ toast(`这一层已经有「${name}」了`); return; }
+  let hit = 0;
+  for(const n of notes){
+    if(!folderUnder(n.folder || "", path)) continue;
+    n.folder = folderRebase(n.folder, path, dst);
+    await dbNotePut(n, true);
+    hit++;
+  }
+  cfg.folders = (cfg.folders || []).map(f => folderUnder(f, path) ? folderRebase(f, path, dst) : f);
+  nbNoteFolder(dst);
+  nbSaveFolders();
+  if(folderUnder(noteFolder, path)) noteFolder = folderRebase(noteFolder, path, dst);
+  if(hit) syncSoon();
+  renderNotes();
+  toast(`已改名为「${name}」`);
+}
+async function folderDup(path){
+  if(!path) return;
+  const notes = await dbNotesAll();
+  const parent = folderParent(path);
+  const sibs = nbAllFolders(notes).filter(f => folderParent(f) === parent).map(folderName);
+  const dst = folderJoin(parent, nbUniqueName(folderName(path), sibs));
+  const inside = notes.filter(n => folderUnder(n.folder || "", path));
+  for(const n of inside) await dbNotePut(noteCloneObj(n, n.title, folderRebase(n.folder, path, dst)), true);
+  for(const f of nbAllFolders(notes)) if(folderUnder(f, path)) nbNoteFolder(folderRebase(f, path, dst));
+  nbNoteFolder(dst);
+  nbSaveFolders();
+  if(inside.length) syncSoon();
+  renderNotes();
+  toast(`已复制为「${folderName(dst)}」（${inside.length} 本笔记）`);
+}
+/* 删文件夹。默认给的是安全那条：只删壳子，里面的东西升到上一层。
+   「连笔记一起删」也只是进回收站，30 天内能捞回来。 */
+async function folderDel(path){
+  if(!path) return;
+  const notes = await dbNotesAll();
+  const inside = notes.filter(n => folderUnder(n.folder || "", path));
+  const nm = folderName(path);
+  let act = "shell";
+  if(inside.length){
+    act = await nbChoose(`删除文件夹「${nm}」`,
+      `里面有 ${inside.length} 本笔记，要怎么处理？`, [
+      {k: "shell", t: "只删文件夹", d: `${inside.length} 本笔记移到${folderParent(path) ? `「${folderName(folderParent(path))}」` : "最外层"}，一本都不丢`},
+      {k: "all", t: "连笔记一起删", d: `${inside.length} 本笔记一起进回收站（30 天内可恢复）`, danger: true}
+    ]);
+    if(!act) return;
+  }else if(!await nbConfirm(`删除空文件夹「${nm}」？`, "里面没有笔记，删掉不影响任何内容。",
+      {ok: "删除", danger: true})) return;
+  await nbFolderDelApply(path, act, notes);
+  nbSaveFolders();
+  syncSoon();
+  renderNotes();
+  toast(act === "all" ? `已删除「${nm}」和里面的 ${inside.length} 本笔记` : `已删除文件夹「${nm}」`);
+}
+/* 删除一个文件夹的实际落库部分（批量删除会连着调好几次，所以拆出来：
+   保存 cfg / syncSoon / 重画都交给调用方，不在循环里重复做） */
+async function nbFolderDelApply(path, act, notes){
+  const parent = folderParent(path);
+  for(const n of (notes || await dbNotesAll())){
+    const f = n.folder || "";
+    if(!folderUnder(f, path)) continue;
+    if(act === "all"){ await dbNoteDel(n.id, true); continue; }
+    /* 只删这一层：底下的子文件夹整棵往上提一级（数学/高数 → 高数） */
+    const rest = f.slice(path.length + 1);
+    if(rest) n.folder = folderJoin(parent, rest);
+    else if(parent) n.folder = parent;
+    else delete n.folder;
+    await dbNotePut(n, true);
+  }
+  cfg.folders = (cfg.folders || []).filter(f => f !== path).map(f=>{
+    if(!folderUnder(f, path)) return f;
+    return folderJoin(parent, f.slice(path.length + 1));
+  }).filter(Boolean);
+  if(folderUnder(noteFolder, path)) noteFolder = parent;
+  if(inkPad && inkPad.note && act === "all"
+     && folderUnder(inkPad.note.folder || "", path)) noteClose();
+}
+/* 移动文件夹：选一个新的上级。自己和自己的子孙不能选，深度也要放得下整棵子树 */
+async function folderMove(path){
+  if(!path) return;
+  const notes = await dbNotesAll();
+  const all = nbAllFolders(notes);
+  const deep = all.filter(f => folderUnder(f, path))
+    .reduce((m, f) => Math.max(m, folderSegs(f).length), folderSegs(path).length) - folderSegs(path).length;
+  const dst = await nbFolderPicker(`把「${folderName(path)}」移到哪`, folderParent(path), all, {
+    desc: "选一个新的上级文件夹",
+    notes,
+    rootLabel: "最外层（不放在任何文件夹里）",
+    skip: f => folderUnder(f, path) || folderSegs(f).length + 1 + deep > NB_MAX_DEPTH,
+    newIn: ""
+  });
+  if(dst === null || dst === undefined) return;
+  if(dst === folderParent(path)) return;
+  const target = folderJoin(dst, folderName(path));
+  if(all.includes(target)){ toast(`「${folderName(dst) || "最外层"}」里已经有「${folderName(path)}」了`); return; }
+  let hit = 0;
+  for(const n of notes){
+    if(!folderUnder(n.folder || "", path)) continue;
+    n.folder = folderRebase(n.folder, path, target);
+    await dbNotePut(n, true);
+    hit++;
+  }
+  cfg.folders = (cfg.folders || []).map(f => folderUnder(f, path) ? folderRebase(f, path, target) : f);
+  nbNoteFolder(target);
+  nbSaveFolders();
+  if(folderUnder(noteFolder, path)) noteFolder = folderRebase(noteFolder, path, target);
+  if(hit) syncSoon();
+  renderNotes();
+  toast(`已移到${dst ? `「${folderName(dst)}」` : "最外层"}`);
+}
+/* 移动一棵文件夹到 dst 下（批量移动会连着调，所以 cfg 保存/重画交给调用方）。
+   返回 false = 目标非法（塞进自己、同名、层数超了），调用方据此提示。 */
+async function nbFolderMoveTo(path, dst, notes, all){
+  if(!path) return false;
+  if(dst === folderParent(path)) return true;                  // 已经在那儿了
+  if(folderUnder(dst, path) || dst === path) return false;
+  const deep = all.filter(f => folderUnder(f, path))
+    .reduce((m, f) => Math.max(m, folderSegs(f).length), folderSegs(path).length) - folderSegs(path).length;
+  if(folderSegs(dst).length + 1 + deep > NB_MAX_DEPTH) return false;
+  const target = folderJoin(dst, folderName(path));
+  if(all.includes(target)) return false;
+  for(const n of notes){
+    if(!folderUnder(n.folder || "", path)) continue;
+    n.folder = folderRebase(n.folder, path, target);
+    await dbNotePut(n, true);
+  }
+  cfg.folders = (cfg.folders || []).map(f => folderUnder(f, path) ? folderRebase(f, path, target) : f);
+  nbNoteFolder(target);
+  if(folderUnder(noteFolder, path)) noteFolder = folderRebase(noteFolder, path, target);
+  all.push(target);
+  return true;
+}
+/* ---- 卡片上的「⋯」菜单 ----
+   一张卡上塞三四个小图标按钮，手写笔和手指都容易点错（之前删除和移动
+   两个按钮就挨着 6px）。改成一个菜单入口，操作名写全，误触概率低得多。 */
+function nbMenu(anchor, items){
+  return new Promise(res=>{
+    document.querySelectorAll(".nb-menu-wrap").forEach(x => x.remove());
+    const wrap = document.createElement("div");
+    wrap.className = "nb-menu-wrap";
+    wrap.innerHTML = `<div class="nb-menu">${items.map(i=>
+      `<button data-k="${i.k}"${i.danger ? ' class="danger"' : ""}>${icon(i.ic || "note")} ${esc(i.t)}</button>`
+    ).join("")}</div>`;
+    document.body.appendChild(wrap);
+    const m = wrap.firstElementChild;
+    const r = anchor.getBoundingClientRect();
+    const vw = innerWidth, vh = innerHeight;
+    m.style.left = Math.max(8, Math.min(r.right - m.offsetWidth, vw - m.offsetWidth - 8)) + "px";
+    m.style.top = (r.bottom + 6 + m.offsetHeight > vh - 8
+      ? Math.max(8, r.top - m.offsetHeight - 6) : r.bottom + 6) + "px";
+    const close = v =>{
+      document.removeEventListener("keydown", onKey, true);
+      wrap.remove();
+      res(v);
+    };
+    const onKey = e =>{ if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); close(null); } };
+    document.addEventListener("keydown", onKey, true);
+    wrap.addEventListener("click", e=>{
+      const b = e.target.closest("button[data-k]");
+      close(b ? b.dataset.k : null);
+    });
+  });
+}
+async function nbNoteMenu(id, anchor){
+  const n = await nbGetNote(id);
+  if(!n){ renderNotes(); return; }
+  const k = await nbMenu(anchor, [
+    {k: "open",   t: "打开",       ic: "note"},
+    {k: "rename", t: "重命名",     ic: "pen"},
+    {k: "dup",    t: "复制一份",   ic: "copy"},
+    {k: "move",   t: "移到文件夹", ic: "folderPlus"},
+    {k: "sel",    t: "多选…",      ic: "check"},
+    {k: "del",    t: "删除",       ic: "trash", danger: true}
+  ]);
+  if(k === "open") noteOpen(id);
+  else if(k === "rename") noteRename(id);
+  else if(k === "dup") noteDupOne(id);
+  else if(k === "move") noteMove(id);
+  else if(k === "sel"){ nbSelEnter(); nbSelNotes.add(id); renderNotes(); }
+  else if(k === "del") noteDelConfirm(id);
+}
+async function nbFolderMenu(path, anchor){
+  const k = await nbMenu(anchor, [
+    {k: "open",   t: "打开文件夹", ic: "folder"},
+    {k: "rename", t: "重命名",     ic: "pen"},
+    {k: "dup",    t: "复制一份",   ic: "copy"},
+    {k: "move",   t: "移动到…",    ic: "move"},
+    {k: "sel",    t: "多选…",      ic: "check"},
+    {k: "del",    t: "删除",       ic: "trash", danger: true}
+  ]);
+  if(k === "open"){ noteFolder = path; renderNotes(); }
+  else if(k === "rename") folderRename(path);
+  else if(k === "dup") folderDup(path);
+  else if(k === "move") folderMove(path);
+  else if(k === "sel"){ nbSelEnter(); nbSelFolders.add(path); renderNotes(); }
+  else if(k === "del") folderDel(path);
+}
+/* ---- 多选 ----
+   进入方式两条：工具栏「选择」按钮，或者在任意卡片上长按 450ms。
+   选择态下点卡片＝勾选/取消，不会误开笔记。 */
+let nbSelMode = false;
+const nbSelNotes = new Set(), nbSelFolders = new Set();
+const nbSelCount = ()=> nbSelNotes.size + nbSelFolders.size;
+function nbSelEnter(){ nbSelMode = true; }
+function nbSelToggleMode(){
+  if(nbSelMode) return nbSelExit();
+  nbSelEnter();
+  renderNotes();
+}
+function nbSelExit(){
+  nbSelMode = false;
+  nbSelNotes.clear();
+  nbSelFolders.clear();
+  renderNotes();
+}
+function nbSelToggleCard(card){
+  const id = card.dataset.id, f = card.dataset.folder;
+  const set = id ? nbSelNotes : nbSelFolders, key = id || f;
+  if(set.has(key)) set.delete(key); else set.add(key);
+  card.classList.toggle("sel", set.has(key));
+  nbSelBar();
+}
+/* 批量操作条。选中数为 0 时也留着（还能点「全选」），退出要显式点「完成」 */
+function nbSelBar(){
+  const bar = $("noteBatch");
+  if(!bar) return;
+  if(!nbSelMode){ bar.hidden = true; bar.innerHTML = ""; return; }
+  const n = nbSelNotes.size, f = nbSelFolders.size, c = n + f;
+  bar.hidden = false;
+  bar.innerHTML = `
+    <div class="nb-batch-in">
+      <b>已选 ${c ? [f ? f + " 个文件夹" : "", n ? n + " 本笔记" : ""].filter(Boolean).join(" + ") : "0 项"}</b>
+      <div class="nb-batch-btns">
+        <button class="btn ghost small" data-b="all">${icon("check")} 全选本层</button>
+        <button class="btn ghost small" data-b="none"${c ? "" : " disabled"}>清空</button>
+        <button class="btn ghost small" data-b="rename"${c ? "" : " disabled"}>${icon("pen")} 重命名</button>
+        <button class="btn ghost small" data-b="dup"${c ? "" : " disabled"}>${icon("copy")} 复制</button>
+        <button class="btn ghost small" data-b="move"${c ? "" : " disabled"}>${icon("folderPlus")} 移动到</button>
+        <button class="btn small red" data-b="del"${c ? "" : " disabled"}>${icon("trash")} 删除</button>
+        <button class="btn small" data-b="done">完成</button>
+      </div>
+    </div>`;
+}
+(function(){
+  const bar = typeof $ !== "undefined" && $("noteBatch");
+  if(!bar) return;
+  bar.addEventListener("click", e=>{
+    const b = e.target.closest("button[data-b]");
+    if(!b) return;
+    const k = b.dataset.b;
+    if(k === "done") return nbSelExit();
+    if(k === "none"){ nbSelNotes.clear(); nbSelFolders.clear(); return renderNotes(); }
+    if(k === "all") return nbSelAllHere();
+    if(k === "rename") return nbBatchRename();
+    if(k === "dup") return nbBatchDup();
+    if(k === "move") return nbBatchMove();
+    if(k === "del") return nbBatchDel();
+  });
+})();
+async function nbSelAllHere(){
+  const notes = await dbNotesAll();
+  for(const n of notes) if((n.folder || "") === noteFolder) nbSelNotes.add(n.id);
+  for(const f of nbAllFolders(notes)) if(folderParent(f) === noteFolder) nbSelFolders.add(f);
+  renderNotes();
+}
+/* 批量改名：单选一项就是普通改名；多本笔记则统一名字 + 自动编号
+   （「导数 1」「导数 2」…，按列表现在的顺序）。文件夹只能一个一个改。 */
+async function nbBatchRename(){
+  if(nbSelCount() === 1){
+    if(nbSelFolders.size){ await folderRename([...nbSelFolders][0]); nbSelExit(); return; }
+    await noteRename([...nbSelNotes][0]);
+    nbSelExit();
+    return;
+  }
+  if(nbSelFolders.size){ toast("文件夹要一个一个改名，先只选一个文件夹"); return; }
+  const ids = [...nbSelNotes];
+  const base = await nbPrompt(`批量改名 ${ids.length} 本笔记`, "", {
+    ph: "统一名称",
+    desc: `会改成「名称 1」「名称 2」…（按列表顺序编号，共 ${ids.length} 本）`
+  });
+  if(!base) return;
+  const notes = await dbNotesAll();
+  const order = notes.filter(n => ids.includes(n.id));      // dbNotesAll 已按更新时间排好
+  let i = 0;
+  for(const n of order){
+    n.title = `${base} ${++i}`;
+    await dbNotePut(n, true);
+  }
+  syncSoon();
+  nbSelExit();
+  toast(`已改名 ${i} 本`);
+}
+async function nbBatchDup(){
+  let cn = 0, cf = 0;
+  for(const id of nbSelNotes) if(await noteDup(id, true)) cn++;
+  /* 浅的先复制：反过来先复制子文件夹，父文件夹那次就会把刚生成的副本也一起再拷进去 */
+  for(const path of [...nbSelFolders].sort((a, b) => folderSegs(a).length - folderSegs(b).length)){
+    await folderDupQuiet(path);
+    cf++;
+  }
+  nbSaveFolders();
+  if(cn || cf) syncSoon();
+  nbSelExit();
+  toast(`已复制 ${[cf ? cf + " 个文件夹" : "", cn ? cn + " 本笔记" : ""].filter(Boolean).join(" + ") || "0 项"}`);
+}
+/* folderDup 的安静版（批量用：不 toast、不重画、不各自存 cfg） */
+async function folderDupQuiet(path){
+  const notes = await dbNotesAll();
+  const parent = folderParent(path);
+  const all = nbAllFolders(notes);
+  const sibs = all.filter(f => folderParent(f) === parent).map(folderName);
+  const dst = folderJoin(parent, nbUniqueName(folderName(path), sibs));
+  for(const n of notes) if(folderUnder(n.folder || "", path))
+    await dbNotePut(noteCloneObj(n, n.title, folderRebase(n.folder, path, dst)), true);
+  for(const f of all) if(folderUnder(f, path)) nbNoteFolder(folderRebase(f, path, dst));
+  nbNoteFolder(dst);
+  return dst;
+}
+async function nbBatchMove(){
+  const notes = await dbNotesAll();
+  const all = nbAllFolders(notes);
+  const picked = [...nbSelFolders];
+  /* 选中的文件夹自己和它们的子孙都不能当目标 */
+  const deepest = picked.reduce((m, p)=>{
+    const d = all.filter(f => folderUnder(f, p))
+      .reduce((x, f) => Math.max(x, folderSegs(f).length), folderSegs(p).length) - folderSegs(p).length;
+    return Math.max(m, d);
+  }, 0);
+  const dst = await nbFolderPicker(`移动 ${nbSelCount()} 项`, noteFolder, all, {
+    desc: "选一个目标文件夹",
+    notes,
+    rootLabel: "最外层（不放在任何文件夹里）",
+    skip: f => picked.some(p => folderUnder(f, p) || f === p)
+      || (picked.length ? folderSegs(f).length + 1 + deepest > NB_MAX_DEPTH : false),
+    newIn: noteFolder
+  });
+  if(dst === null) return;
+  let cn = 0, cf = 0, bad = 0;
+  for(const path of picked){
+    if(await nbFolderMoveTo(path, dst, notes, all)) cf++; else bad++;
+  }
+  for(const id of nbSelNotes){
+    const n = notes.find(x => x.id === id) || await nbGetNote(id);
+    if(!n) continue;
+    if((n.folder || "") === dst) continue;
+    if(dst) n.folder = dst; else delete n.folder;
+    await dbNotePut(n, true);
+    cn++;
+  }
+  if(dst) nbNoteFolder(dst);
+  nbSaveFolders();
+  if(cn || cf) syncSoon();
+  nbSelExit();
+  toast(`已移到${dst ? `「${folderName(dst)}」` : "最外层"}`
+    + `：${[cf ? cf + " 个文件夹" : "", cn ? cn + " 本笔记" : ""].filter(Boolean).join(" + ") || "0 项"}`
+    + (bad ? `（${bad} 个文件夹不能移到这里，跳过）` : ""));
+}
+async function nbBatchDel(){
+  const notes = await dbNotesAll();
+  const picked = [...nbSelFolders];
+  const inside = notes.filter(n => !nbSelNotes.has(n.id) && picked.some(p => folderUnder(n.folder || "", p)));
+  let act = "shell";
+  if(picked.length && inside.length){
+    act = await nbChoose(`删除 ${picked.length} 个文件夹 + ${nbSelNotes.size} 本笔记`,
+      `选中的文件夹里另外还有 ${inside.length} 本没勾的笔记，它们要怎么处理？`, [
+      {k: "shell", t: "只删文件夹", d: `那 ${inside.length} 本移到上一层，不删`},
+      {k: "all", t: "连里面的笔记一起删", d: `一共 ${nbSelNotes.size + inside.length} 本进回收站（30 天内可恢复）`, danger: true}
+    ]);
+    if(!act) return;
+  }else if(!await nbConfirm(`删除选中的 ${nbSelCount()} 项？`,
+      nbSelNotes.size ? `${nbSelNotes.size} 本笔记会进回收站，30 天内可以恢复。`
+                      : "这些文件夹里没有笔记，删掉不影响任何内容。",
+      {ok: "移到回收站", danger: true})) return;
+  for(const id of nbSelNotes){
+    if(inkPad && inkPad.note && inkPad.note.id === id) noteClose();
+    await dbNoteDel(id, true);
+  }
+  /* 深的先删：先处理 数学/高数 再处理 数学，中途路径不会被上一步改掉 */
+  for(const path of picked.sort((a, b) => folderSegs(b).length - folderSegs(a).length))
+    await nbFolderDelApply(path, act, await dbNotesAll());
+  nbSaveFolders();
+  syncSoon();
+  const cnt = nbSelNotes.size + (act === "all" ? inside.length : 0);
+  nbSelExit();
+  toast(`已删除 ${picked.length ? picked.length + " 个文件夹" : ""}${picked.length && cnt ? " + " : ""}${cnt ? cnt + " 本笔记" : ""}`.trim() || "已删除");
+}
+/* ---- 回收站 ----
+   删除现在只是打标记（内容原样留着），30 天内在这里能原样恢复；
+   「彻底删除」把记录剥成空墓碑——本机不再占空间，另一台设备同步后照样会删。 */
+async function noteTrashPanel(){
+  if(document.querySelector(".nb-trash-mask")) return;
+  const mask = document.createElement("div");
+  mask.className = "nb-new-mask nb-trash-mask";
+  document.body.appendChild(mask);
+  const draw = async ()=>{
+    const trash = await dbNotesTrash();
+    mask.innerHTML = `
+      <div class="card nb-new" style="width:min(560px,94vw)">
+        <h3 style="margin:0 0 6px">回收站</h3>
+        <div class="muted" style="font-size:12.5px;margin-bottom:12px">
+          删掉的笔记在这儿留 30 天，点「恢复」原样回到原来的文件夹。<br>
+          回收站只在本机：别的设备删的、但内容只在那台设备上——要去那台设备恢复。</div>
+        <div class="nb-trash">${trash.length ? trash.map(n=>`
+          <div class="nb-trow">
+            <span class="nm">${esc(n.title || "未命名")}</span>
+            <span class="sub">${(n.pages || []).length} 页 · ${relTime(n.deletedAt)}删除${
+              n.folder ? " · " + esc(n.folder) : ""}</span>
+            <button class="btn ghost small" data-act="r:${n.id}">${icon("undo")} 恢复</button>
+            <button class="btn ghost small" data-act="d:${n.id}">${icon("trash")} 彻底删除</button>
+          </div>`).join("") : `<div class="muted" style="padding:16px 0;text-align:center">回收站是空的</div>`}
+        </div>
+        <div class="row" style="margin-top:14px;align-items:center">
+          ${trash.length ? `<button class="btn small red" data-act="empty">${icon("trash")} 清空回收站</button>` : ""}
+          <div style="flex:1"></div>
+          <button class="btn small" data-act="close">关闭</button>
+        </div>
+      </div>`;
+  };
+  await draw();
+  mask.addEventListener("click", async e=>{
+    if(e.target === mask){ mask.remove(); renderNotes(); return; }
+    const b = e.target.closest("button[data-act]");
+    if(!b) return;
+    const a = b.dataset.act;
+    if(a === "close"){ mask.remove(); renderNotes(); return; }
+    if(a === "empty"){
+      const list = await dbNotesTrash();
+      if(!await nbConfirm(`彻底删除回收站里的 ${list.length} 本笔记？`,
+        "这一步没法撤销，笔迹会真的没了。", {ok: "彻底删除", danger: true})) return;
+      for(const n of list) await dbNoteStrip(n.id);
+      toast("回收站已清空");
+      return draw();
+    }
+    if(a.startsWith("r:")){
+      const ok = await dbNoteRestore(a.slice(2));
+      toast(ok ? "已恢复" : "这本已经没有内容了，恢复不了");
+      return draw();
+    }
+    if(a.startsWith("d:")){
+      if(!await nbConfirm("彻底删除这本笔记？", "这一步没法撤销。", {ok: "彻底删除", danger: true})) return;
+      await dbNoteStrip(a.slice(2));
+      toast("已彻底删除");
+      return draw();
+    }
+  });
+}
+/* 超过 30 天的回收站条目剥成空墓碑：本机不再背着已删笔记的几 MB 笔迹，
+   但记录留着（云端同步要靠它告诉另一台设备"这本删了"）。整个会话跑一次。 */
+let nbSwept = false;
+async function noteTrashSweep(){
+  if(nbSwept) return;
+  nbSwept = true;
+  const cut = Date.now() - 30 * 86400000;
+  try{
+    for(const n of await dbNotesAllRaw())
+      if(n.deletedAt && n.deletedAt < cut && n.pages) await dbNoteStrip(n.id);
   }catch(e){}
 }
 /* ---- PDF 导入 / 导出 ---- */
@@ -2729,12 +3736,21 @@ $("btnSave").addEventListener("click", async ()=>{
 const TABS = ["add","review","practice","bank","book","note","stats","settings"];
 /* 切页单独成函数：除了底部导航，打印面板的「沉浸笔记」也要程序化跳过去。
    以前只有 nav 的事件监听，那个入口直接 ReferenceError。 */
+/* 各页记住自己的滚动位置：在题库翻到第 200 题、去复盘页看一眼、再回来——
+   之前每次都弹回顶部，翻过的又得翻一遍。切走时记下、切回时恢复。 */
+const tabScroll = {};
 function switchTab(tab){
   if(!TABS.includes(tab)) return;
+  const cur = document.querySelector("nav button.active");
+  if(cur && cur.dataset.tab && cur.dataset.tab !== tab) tabScroll[cur.dataset.tab] = window.scrollY;
   document.querySelectorAll("nav button").forEach(x=> x.classList.toggle("active", x.dataset.tab === tab));
   TABS.forEach(t=> $("tab-"+t).hidden = (t !== tab));
-  window.scrollTo(0,0);            // 手机上底部 Tab 切页后停在半空很别扭
-  if(tab==="add") refreshBatchUI();
+  const back = tabScroll[tab] || 0;
+  /* 先立即回位，渲染完成后再校正一次：renderXxx 是异步的（要等 IndexedDB），
+     高度没长出来前 scrollTo 会被钳制。两次 scrollTo 成本为零，换来不闪不跳。 */
+  window.scrollTo(0, back);
+  setTimeout(()=> window.scrollTo(0, tabScroll[tab] || 0), 260);
+  if(tab==="add"){ refreshBatchUI(); renderTodo(); }
   if(tab==="review") renderReview();
   if(tab==="practice") initPractice();
   if(tab==="bank") renderBank();
@@ -3750,6 +4766,39 @@ function inkApply(en, forward){
       st.activeLayer = inkClamp(st.activeLayer, 0, pg.layers.length-1);
       break;
     }
+    case "lrename": {      // 图层改名
+      const pg = st.pages[en.pg];
+      const l = pg && !Array.isArray(pg) && pg.layers[en.li];
+      if(l) l.name = forward ? en.to : en.from;
+      break;
+    }
+    case "lorder": {       // 图层调序：正向 = from 挪到 to，反向 = to 挪回 from
+      const pg = st.pages[en.pg];
+      if(!pg || Array.isArray(pg)) break;
+      const a = forward ? en.from : en.to, b = forward ? en.to : en.from;
+      if(!pg.layers[a]) break;
+      const [l] = pg.layers.splice(a, 1);
+      pg.layers.splice(b, 0, l);
+      st.activeLayer = inkClamp(st.activeLayer, 0, pg.layers.length-1);
+      break;
+    }
+    case "lmerge": {       // 图层合并：正向 = l 的笔迹已在 to 层尾、层已移除
+      const pg = st.pages[en.pg];
+      if(!pg || Array.isArray(pg)) break;
+      if(forward){
+        const i = pg.layers.indexOf(en.l);
+        if(i >= 0) pg.layers.splice(i, 1);
+        const dst = pg.layers[en.to];
+        if(dst && !dst.strokes.includes(en.l.strokes[0]))
+          dst.strokes.splice(en.at, 0, ...en.l.strokes.slice(0, en.n));
+      }else{
+        if(!pg.layers.includes(en.l)) pg.layers.splice(Math.min(en.li, pg.layers.length), 0, en.l);
+        const dst = pg.layers[en.to];
+        if(dst) dst.strokes.splice(en.at, en.n);
+      }
+      st.activeLayer = inkClamp(st.activeLayer, 0, pg.layers.length-1);
+      break;
+    }
   }
   /* 改动发生在视野外的页 → 把视野带过去，否则「按了没反应」 */
   if(en.pg !== undefined && en.pg !== st.page && st.pages[en.pg]) inkGotoPage(en.pg);
@@ -4097,7 +5146,8 @@ async function inkLassoPreview(){
       <h3 style="margin:0 0 10px">截好了，长这样</h3>
       <img class="ink-shot" src="${cv.toDataURL("image/jpeg", 0.85)}" alt="截图预览">
       <div class="row" style="margin-top:12px;justify-content:center;flex-wrap:wrap">
-        <button class="btn small" data-act="bank">${icon("sparkle")} AI 入题库</button>
+        <button class="btn small" data-act="bankdirect" title="识别完直接保存，不进表单，继续写">${icon("sparkle")} AI 直接入库</button>
+        <button class="btn ghost small" data-act="bank">${icon("pen")} 入表单核对</button>
         <button class="btn ghost small" data-act="copy">${icon("copy")} 复制</button>
         <button class="btn ghost small" data-act="save">${icon("save")} 保存</button>
         <button class="btn ghost small" data-act="close">${icon("close")} 关闭</button>
@@ -4133,6 +5183,44 @@ async function inkLassoPreview(){
       if(blob) appDownload(blob, `错题截图_${new Date().toISOString().slice(0,10)}.png`, "image/png");
       toast("这台设备不支持复制图片，已改为保存");
       mask.remove(); return;
+    }
+    if(act === "bankdirect"){
+      /* 识别完直接入库，不进表单、不切页——笔记还开着，接着写下一题。
+         批量导入场景已经验证过"AI 直接入库"是可靠的（带 suspect 标记），
+         这里复用同一套构造，失败再退回表单路径。 */
+      if(!(cfg.base && cfg.key)){
+        toast("还没配 AI 接口，用「入表单核对」手动填");
+        b.disabled = false; return;
+      }
+      toast("AI 识别中…");
+      try{
+        const img = cv.toDataURL("image/jpeg", 0.7);
+        const r = await recognizeImages([img]);
+        if(!r || !r.question) throw new Error("没认出题目");
+        const now = Date.now();
+        await dbPut({
+          id: crypto.randomUUID(), createdAt: now,
+          subject: subjList().includes(r.subject) ? r.subject : subjList()[0],
+          chapter: (r.chapter||"").trim(),
+          question: ((r.question||"") + (r.type?`\n【题型】${r.type}`:"")).trim(),
+          options: Array.isArray(r.options) ? r.options.filter(o=>o&&o.k).map(o=>({k:String(o.k).trim(), t:String(o.t||"").trim()})) : [],
+          myAns: (r.myAnswer||"").trim(),
+          correctAns: (r.correctAnswer||"").trim(),
+          analysis: (r.analysis||"").trim(),
+          reason: 0,                    // 错因只有自己知道，题库里补
+          difficulty: (r.difficulty>=1 && r.difficulty<=5) ? r.difficulty : 3,
+          images: [img], source: "笔记截图",
+          stage: 0, nextReview: now,    // 刚做错，今天就复盘
+          reviewCount: 0, failCount: 0, history: []
+        });
+        mask.remove();
+        refreshBadge();
+        toast("✅ 已入库，今天复盘会见到它");
+      }catch(e){
+        toast("识别失败，改用「入表单核对」");
+        b.disabled = false;
+      }
+      return;
     }
     if(act === "bank"){
       mask.remove();
@@ -5013,6 +6101,10 @@ function inkBarAction(b){
       case "addlayer": return inkAddLayer();
       case "dellayer": return inkDelLayer(+b.dataset.li);
       case "hidelayer": return inkToggleLayer(+b.dataset.li);
+      case "renlayer": return inkRenameLayer(+b.dataset.li);
+      case "mvlayerup": return inkMoveLayer(+b.dataset.li, -1);
+      case "mvlayerdown": return inkMoveLayer(+b.dataset.li, 1);
+      case "mergelayer": return inkMergeLayer(+b.dataset.li);
       case "grid": return inkCycleGrid();
       case "zoomin": case "zoomout": {
         if(!st._rect) return;
@@ -5121,6 +6213,46 @@ function inkToggleLayer(li){
   st.dirty = true;
   inkInvalidate(); inkSyncBar(); inkAutoSave(); inkThumbsRefresh();
 }
+/* 图层重命名：改名可撤销（补丁只记 from/to，回滚零成本） */
+function inkRenameLayer(li){
+  const st = inkPad; if(!st) return;
+  const pg = st.pages[st.page];
+  if(Array.isArray(pg) || !pg.layers[li]) return;
+  const name = (prompt("图层改叫什么？", pg.layers[li].name || "") || "").trim().slice(0, 20);
+  if(!name || name === pg.layers[li].name) return;
+  inkPush({k:"lrename", pg:st.page, li, from:pg.layers[li].name, to:name});
+  pg.layers[li].name = name;
+  inkSyncBar(); inkThumbsRefresh();
+}
+/* 图层调序：li 层往上/往下挪一格。撤销 = 反向挪。 */
+function inkMoveLayer(li, dir){
+  const st = inkPad; if(!st) return;
+  const pg = st.pages[st.page];
+  if(Array.isArray(pg)) return;
+  const to = li + dir;
+  if(to < 0 || to >= pg.layers.length) return;
+  const [l] = pg.layers.splice(li, 1);
+  pg.layers.splice(to, 0, l);
+  st.activeLayer = to;
+  inkPush({k:"lorder", pg:st.page, from:li, to});
+  inkInvalidate(); inkSyncBar(); inkThumbsRefresh();
+}
+/* 合并图层：把 li 层的笔迹全部并进上一层，li 层移除。
+   撤销时把那一段笔迹抠出来、层原样插回去。 */
+function inkMergeLayer(li){
+  const st = inkPad; if(!st) return;
+  const pg = st.pages[st.page];
+  if(Array.isArray(pg) || li < 1 || !pg.layers[li]) return;
+  const src = pg.layers[li], dst = pg.layers[li - 1];
+  if(dst.visible === false) toast(`注意：「${dst.name}」是隐藏层，合并后笔迹看不见`);
+  const at = dst.strokes.length;
+  dst.strokes.push(...src.strokes);
+  pg.layers.splice(li, 1);
+  st.activeLayer = inkClamp(st.activeLayer, 0, pg.layers.length - 1);
+  inkPush({k:"lmerge", pg:st.page, li, l:src, to:li - 1, at, n:src.strokes.length});
+  inkInvalidate(); inkSyncBar(); inkThumbsRefresh();
+  toast(`已把「${src.name}」并入「${dst.name}」`);
+}
 function inkLayerPanel(){
   const st = inkPad; if(!st) return;
   document.querySelectorAll(".ink-layers").forEach(el=>{
@@ -5132,10 +6264,14 @@ function inkLayerPanel(){
         <button class="btn ghost small" data-act="grid" title="切换这一页的底纹">底纹</button>
       </div>` +
       pg.layers.map((l,i)=>`
-      <div class="ink-row${i===st.activeLayer?" on":""}">
+      <div class="ink-layer-row${i===st.activeLayer?" on":""}">
         <button class="btn ghost small" data-layer="${i}" style="flex:1;text-align:left">${i===st.activeLayer?"● ":"○ "}${l.name}<span class="lbl"> ${l.strokes.length} 笔</span></button>
-        <button class="btn ghost small" data-act="hidelayer" data-li="${i}" title="显示 / 隐藏">${l.visible===false?"🙈":"👁️"}</button>
-        ${pg.layers.length>1?`<button class="btn ghost small" data-act="dellayer" data-li="${i}" title="删除图层">🗑</button>`:""}
+        <button class="lyr-btn" data-act="hidelayer" data-li="${i}" title="显示 / 隐藏">${l.visible===false?"🙈":"👁"}</button>
+        ${i>0?`<button class="lyr-btn" data-act="mvlayerup" data-li="${i}" title="上移一层（画在更上面）">↑</button>`:""}
+        ${i<pg.layers.length-1?`<button class="lyr-btn" data-act="mvlayerdown" data-li="${i}" title="下移一层">↓</button>`:""}
+        ${i>0?`<button class="lyr-btn" data-act="mergelayer" data-li="${i}" title="并入上一层">⇧</button>`:""}
+        <button class="lyr-btn" data-act="renlayer" data-li="${i}" title="重命名">✎</button>
+        ${pg.layers.length>1?`<button class="lyr-btn" data-act="dellayer" data-li="${i}" title="删除图层">🗑</button>`:""}
       </div>`).join("");
   });
 }
@@ -5423,6 +6559,14 @@ addEventListener("beforeunload", e=>{
   if(!has) return;
   if(st.note){ try{ st.saveFn && st.saveFn(); }catch(err){} return; }
   e.preventDefault(); e.returnValue = "";
+});
+/* 切后台就立刻落库：安卓回收后台 WebView 时进程说杀就杀，beforeunload
+   没有机会跑。1.8 秒防抖平时够密，但"刚写完一笔就切走"的那一下
+   就靠这里兜住。落库是幂等的，多存一次没有代价。 */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "hidden" && inkPad && inkPad.dirty && inkPad.saveFn){
+    try{ inkPad.saveFn(); }catch(err){}
+  }
 });
 
 /* 重命名笔记本（PDF / 图片导入的一样，改的都是 note.title） */
@@ -6766,8 +7910,49 @@ function bar(label, val, total, color){
   return `<div class="bar-row"><div class="bar-label">${esc(label)}</div>
     <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}">${val}</div></div></div>`;
 }
-async function renderStats(){
-  const all = await dbAll();
+/* ---- 今日待办卡（录入页顶上）----
+   一个"今天该干嘛"的聚合入口：待复盘多少题、今天复习了几题、
+   上次写到一半的笔记一键续写。都是一次点击直达，不用翻页签找。 */
+async function renderTodo(){
+  const row = $("todoRow");
+  if(!row) return;
+  try{
+    const all = await dbAll();
+    const due = all.filter(isDue).length;
+    const today0 = new Date(); today0.setHours(0,0,0,0);
+    let done = 0;
+    for(const q of all) for(const h of (q.history || []))
+      if(h.t >= +today0 && h.g !== "ink") done++;
+    /* 上次在写的笔记：noteOpen 时记的，还在就给个续写入口 */
+    let lastNote = null;
+    try{ lastNote = JSON.parse(localStorage.getItem("nb_last_open") || "null"); }catch(e){}
+    if(lastNote){
+      const n = await new Promise(r=>{
+        const t = db.transaction("notebooks","readonly").objectStore("notebooks").get(lastNote.id);
+        t.onsuccess = ()=> r(t.result); t.onerror = ()=> r(null);
+      });
+      if(!n || n.deletedAt) lastNote = null;
+      else lastNote.title = n.title || "未命名";
+    }
+    row.innerHTML = `
+      <button class="todo-item${due ? " hot" : ""}" onclick="switchTab('review')">
+        ${icon("flower")} 待复盘 <span class="num">${due}</span> 题
+      </button>
+      <button class="todo-item" onclick="switchTab('stats')">
+        ${icon("check")} 今天已复习 <span class="num">${done}</span> 题
+      </button>
+      <button class="todo-item" onclick="switchTab('bank')">
+        ${icon("book")} 题库 <span class="num">${all.length}</span> 题
+      </button>
+      ${lastNote ? `<button class="todo-item" onclick="noteOpen('${lastNote.id}')"
+        title="接着上次的位置写">${icon("pen")} 继续写《${esc(lastNote.title)}》</button>` : ""}
+      <div style="flex:1"></div>
+      ${due === 0 && done === 0 ? `<span class="muted" style="font-size:12.5px">今天还没有安排，先录一道题或写会儿笔记吧</span>` : ""}`;
+  }catch(e){
+    row.innerHTML = `<span class="muted" style="font-size:13px">今天还没有安排</span>`;
+  }
+}
+async function renderStats(){  const all = await dbAll();
   const mastered = all.filter(q=>q.masteredAt).length;
   const due = all.filter(isDue).length;
   const week = all.filter(q=>q.createdAt > Date.now()-7*86400000).length;
@@ -7411,7 +8596,8 @@ async function renderBooks(){
           <b>${esc(b.name)}</b>
           <div class="muted" style="margin-top:4px">${b.pageCount} 页｜文字层 ${b.textPages} 页${b.textPages===0?"（扫描版，走视觉模型）":"（题号提取仅几十 token）"}｜${b.pdf?"本机有 PDF 原文件":"仅文字层（从其他设备同步来的，可正常勾选导入）"}｜上传于 ${fmtDate(b.addedAt)}</div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn small" onclick="goPickBook('${b.id}')" title="去录入页勾选这本书的题，批量识别入库">${icon("check")} 挑题入库</button>
           <label class="muted" style="margin:0">页码偏移</label>
           <input type="number" id="off-${b.id}" value="${b.offset}" style="width:70px" onchange="setOffset('${b.id}',this.value)">
           <button class="btn ghost small" style="color:var(--red)" onclick="delBook('${b.id}')">删除</button>
@@ -7419,6 +8605,15 @@ async function renderBooks(){
       </div>
     </div>`).join("") : `<div class="empty">还没有上传练习册</div>`;
 }
+/* 从练习册卡直达勾选：以前上传完要去「录入」页、再在下拉里翻到这本书——
+   两步变成一步，选好书直接进浏览勾选。 */
+window.goPickBook = async id =>{
+  switchTab("add");
+  const sel = $("bookSel");
+  if(![...sel.options].some(o => o.value === id)) await refreshBookSel();
+  if([...sel.options].some(o => o.value === id)) sel.value = id;
+  $("btnBrowseBook").click();
+};
 window.setOffset = async (id,v)=>{ const bs=await dbBooksAll(); const b=bs.find(x=>x.id===id); b.offset=+v||0; await dbBookPut(b); toast("偏移已保存"); };
 window.delBook = async id => { if(!confirm("删除这本练习册？已保存的错题不受影响")) return; await dbBookDel(id); renderBooks(); refreshBookSel(); };
 
@@ -7782,6 +8977,7 @@ function cfgSigOf(o){
   for(const k of CFG_SYNC_KEYS) p[k] = (o && o[k]) || "";
   p.intervals = normIntervals(o && o.intervals);
   p.subjects = normSubjects(o && o.subjects);
+  p.folders = normFolders(o && o.folders);
   return JSON.stringify(p);
 }
 function cfgSyncPart(){
@@ -7789,6 +8985,7 @@ function cfgSyncPart(){
   for(const k of CFG_SYNC_KEYS) p[k] = cfg[k] || "";
   p.intervals = normIntervals(cfg.intervals);
   p.subjects = normSubjects(cfg.subjects);
+  p.folders = normFolders(cfg.folders);
   return p;
 }
 function cfgSyncSig(){ return cfgSigOf(cfg); }
@@ -7814,11 +9011,13 @@ function applyRemoteCfg(part, at){
   for(const k of CFG_SYNC_KEYS) cfg[k] = part[k] || "";
   cfg.intervals = normIntervals(part.intervals);
   cfg.subjects = normSubjects(part.subjects);
+  cfg.folders = normFolders(part.folders);
   cfg.cfgAt = at;
   cfgSigSeen = cfgSyncSig();          // 先认下这个签名，后面的 saveCfg 才不会误判
   cfgDirty = false;
   localStorage.setItem("cyt_cfg", JSON.stringify(cfg));
   fillSubjectSelects();               // 科目列表变了，四个下拉跟着换
+  if(typeof renderNotes === "function" && $("tab-note") && !$("tab-note").hidden) renderNotes();
 }
 
 function syncMsg(s){ const el = $("syncMsg"); if(el) el.textContent = s; }
@@ -8100,23 +9299,51 @@ async function doSync(quiet){
     const keepB = [...bmap.values()].filter(b=> !(b.deletedAt && b.deletedAt < cutoff));
     for(const b of bmap.values()) if(!keepB.includes(b)) await dbBookHardDel(b.id);
 
-    /* ---- 笔记本 ---- */
+    /* ---- 笔记本 ----
+       笔迹是 last-write-wins 合并，但「两台设备离线各写过同一本」的场景
+       直接选一边会整本覆盖另一边——写字的人发现少了几页才知道出事了。
+       所以用 nb_sync_at（上次同步时云端版本的 updatedAt）做三方判断：
+       只有远端变 → 用远端；只有本地变 → 推本地；两边都变 → 本地保留，
+       云端那份原样另存一个「冲突副本」，两边的内容都在，人工挑。 */
     const rn = await ghRead(F_N);
     const remoteN = (rn.data && rn.data.notebooks) || [];
     const localN = await dbNotesAllRaw();
+    let nbSyncAt = {};
+    try{ nbSyncAt = JSON.parse(localStorage.getItem("nb_sync_at") || "{}"); }catch(e){}
     const nmap = new Map();
     for(const n of localN) nmap.set(n.id, n);
-    let nPulled = 0;
+    let nPulled = 0, nbConflicts = 0;
     for(const r of remoteN){
       const cur = nmap.get(r.id);
       /* 正开着写的那本绝不能被云端盖掉：笔迹还在内存里，盖了就是当场丢稿。 */
       if(currentNote && currentNote.id === r.id){ nmap.set(r.id, currentNote); continue; }
+      const knownAt = nbSyncAt[r.id] || 0;
+      const remoteChanged = (r.updatedAt || 0) > knownAt;
+      const localChanged = !!cur && !cur.deletedAt && (cur.updatedAt || 0) > knownAt;
+      if(remoteChanged && localChanged && !r.deletedAt){
+        /* 删除不参与冲突合并（删了就是删了），只对"两边都在写"保副本 */
+        const d = new Date(r.updatedAt || Date.now());
+        const cp = noteCloneObj(r, (r.title || "未命名")
+          + `（冲突副本 ${d.getMonth()+1}-${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}）`,
+          r.folder);
+        await dbNotePutRaw(cp);
+        nbSyncAt[cp.id] = cp.updatedAt || 0;
+        nbConflicts++;
+        continue;                      // 本地版本留着，等下推上去
+      }
       const merged = mergeNote(cur, r);
       if(merged !== cur){ await dbNotePutRaw(merged); nPulled++; }
       nmap.set(r.id, merged);
     }
     const keepN = [...nmap.values()].filter(n=> !(n.deletedAt && n.deletedAt < cutoff));
     for(const n of nmap.values()) if(!keepN.includes(n)) await dbNoteHardDel(n.id);
+    /* 记下"云端现在是什么版本"，下一轮同步靠它分辨谁先动的手 */
+    const liveIds = new Set(keepN.map(n => n.id));
+    for(const n of keepN) nbSyncAt[n.id] = n.updatedAt || 0;
+    for(const k of Object.keys(nbSyncAt)) if(!liveIds.has(k)) delete nbSyncAt[k];
+    try{ localStorage.setItem("nb_sync_at", JSON.stringify(nbSyncAt)); }catch(e){}
+    /* 回收站里的那几本只传墓碑：本机留着内容好恢复，云端没必要存已删的笔迹 */
+    const cloudN = keepN.map(noteForCloud);
 
     /* ---- 回传。没变化就不 PUT，省一次写和几 MB 上传 ---- */
     const qPayload = {version:2, syncedAt:Date.now(), questions:keepQ};
@@ -8125,8 +9352,8 @@ async function doSync(quiet){
     const cloudB = keepB.map(bookForCloud);
     if(JSON.stringify(remoteB) !== JSON.stringify(cloudB))
       await ghWrite(F_B, rb.sha, {version:2, syncedAt:Date.now(), books:cloudB}, "sync books");
-    if(JSON.stringify(remoteN) !== JSON.stringify(keepN))
-      await ghWrite(F_N, rn.sha, {version:1, syncedAt:Date.now(), notebooks:keepN}, "sync notebooks");
+    if(JSON.stringify(remoteN) !== JSON.stringify(cloudN))
+      await ghWrite(F_N, rn.sha, {version:1, syncedAt:Date.now(), notebooks:cloudN}, "sync notebooks");
 
     /* ---- 笔记背景图（练习册 PDF 页 / 图片页）----
        一张图一个文件放 nbimg/ 目录增量传：塞进 notebooks.json.gz 会把整份
@@ -8134,7 +9361,7 @@ async function doSync(quiet){
        下载：云端有、本机没有、被引用；清理：云端有、没有笔记引用（孤儿）。
        单轮上传封顶 60 张，一本大练习册分几轮传完，不堵同步。 */
     const needImgs = new Set();
-    for(const n of keepN) for(const pg of (n.pages||[]))
+    for(const n of cloudN) for(const pg of (n.pages||[]))
       if(!Array.isArray(pg) && pg.bgType === "image" && pg.bgData) needImgs.add(pg.bgData);
     if(needImgs.size){
       const remoteImgs = await ghList("nbimg");
@@ -8172,11 +9399,13 @@ async function doSync(quiet){
     const bLive = keepB.filter(b=>!b.deletedAt).length;
     syncMsg(`✅ 同步完成 ${new Date().toLocaleTimeString().slice(0,5)}｜本地 ${live} 题 / ${bLive} 本练习册` +
       (pulled||bPulled ? `，拉回 ${pulled} 题${bPulled?` + ${bPulled} 本练习册`:""}` : "") +
+      (nbConflicts ? `；有 ${nbConflicts} 本笔记两边都改过，云端版本已另存为「冲突副本」，请人工核对` : "") +
       (cfgPulled ? "；已采用云端的接口与复习间隔设置" : ""));
     /* cfgPulled 也要重画复盘页：间隔变了，「第 x/N 轮」的分母就跟着变 */
     if(pulled || cfgPulled){ refreshBadge(); if(!$("tab-bank").hidden) renderBank(); if(!$("tab-review").hidden) renderReview(); }
     if(bPulled){ scanCache.clear(); refreshBookSel(); if(!$("tab-book").hidden) renderBooks(); }
-    if(nPulled && !$("tab-note").hidden) renderNotes();
+    if((nPulled || nbConflicts) && !$("tab-note").hidden) renderNotes();
+    if(nbConflicts) toast(`有 ${nbConflicts} 本笔记两边都改过：本地已保留，云端版本存成了「冲突副本」`);
     if(cfgPulled) toast("已同步接口与复习间隔");
     else if(!quiet) toast(pulled||bPulled ? `同步完成，拉回 ${pulled} 题${bPulled?` + ${bPulled} 本`:""}` : "同步完成");
   }catch(err){
